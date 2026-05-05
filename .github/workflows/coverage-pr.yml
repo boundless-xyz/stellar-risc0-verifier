@@ -11,7 +11,14 @@ permissions:
 
 jobs:
   cov-head:
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     outputs:
       pct: ${{ steps.cov.outputs.coverage }}
     steps:
@@ -43,7 +50,14 @@ jobs:
 
   compare-and-comment:
     needs: cov-head
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     steps:
       # 1) Try to download base artifact from the base branch
       - name: Download base branch artifact (if present)

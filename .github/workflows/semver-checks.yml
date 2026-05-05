@@ -17,8 +17,14 @@ env:
 
 jobs:
   semver:
-    runs-on: ubuntu-latest
-    permissions:
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu    permissions:
       contents: read
     steps:
     - uses: actions/checkout@v4

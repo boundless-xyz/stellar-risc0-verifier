@@ -13,7 +13,14 @@ env:
 jobs:
   security_audit:
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     permissions:
       contents: read
       checks: write
