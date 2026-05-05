@@ -11,9 +11,7 @@
 # These owners will be requested for review on ALL pull requests
 # Uncomment and customize the line below:
 
-* @NethermindEth/zk-engineering
-* @Oghma
-
+* @willemolding
 
 # =============================================================================
 # PATH-BASED OWNERSHIP

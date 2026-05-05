@@ -368,20 +368,3 @@ impl ReceiptClaim {
         env.crypto().sha256(&data).into()
     }
 }
-
-/// Router mapping entry for a verifier selector.
-///
-/// This enum represents the raw state stored in the router mapping:
-/// - `Active(Address)` means the selector routes to that verifier contract.
-/// - `Tombstone` means the selector was removed and can never be reused.
-///
-/// The router `verifiers` getter returns `None` when a selector has never been set,
-/// allowing callers to distinguish "unset" vs "removed" without relying on errors.
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum VerifierEntry {
-    /// Active verifier for the selector.
-    Active(Address),
-    /// Selector is permanently removed.
-    Tombstone,
-}

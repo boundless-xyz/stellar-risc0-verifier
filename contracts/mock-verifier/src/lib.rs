@@ -7,10 +7,6 @@ use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, Verifier
 #[cfg(test)]
 mod test;
 
-const DAY_IN_LEDGERS: u32 = 17_280;
-const VERIFIER_EXTEND_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
-const VERIFIER_TTL_THRESHOLD: u32 = VERIFIER_EXTEND_AMOUNT - DAY_IN_LEDGERS;
-
 #[contracttype]
 enum DataKey {
     Selector,
@@ -19,15 +15,8 @@ enum DataKey {
 fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
     let key = DataKey::Selector;
     env.storage()
-        .persistent()
+        .instance()
         .get(&key)
-        .inspect(|_| {
-            env.storage().persistent().extend_ttl(
-                &key,
-                VERIFIER_TTL_THRESHOLD,
-                VERIFIER_EXTEND_AMOUNT,
-            );
-        })
         .ok_or(VerifierError::InvalidSelector)
 }
 
@@ -48,9 +37,7 @@ pub struct RiscZeroMockVerifier;
 impl RiscZeroMockVerifier {
     pub fn __constructor(env: Env, selector: BytesN<4>) {
         let selector: Bytes = selector.into();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Selector, &selector);
+        env.storage().instance().set(&DataKey::Selector, &selector);
     }
 
     /// Returns the configured selector as `BytesN<4>`.
@@ -89,8 +76,6 @@ impl RiscZeroMockVerifier {
 
 #[contractimpl]
 impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
-    type Proof = ();
-
     /// Verify a mock seal by reconstructing the claim digest from inputs.
     ///
     /// Returns a structured [`VerifierError`] on selector mismatch or invalid proof.

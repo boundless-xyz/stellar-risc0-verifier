@@ -89,8 +89,6 @@ impl RiscZeroGroth16Verifier {
 
 #[contractimpl]
 impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
-    type Proof = Groth16Seal;
-
     fn verify(
         env: Env,
         seal: Bytes,
@@ -106,7 +104,7 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     }
 
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
-        let seal = Self::Proof::try_from(receipt.seal)?;
+        let seal = Groth16Seal::try_from(receipt.seal)?;
 
         // if seal.selector != Self::SELECTOR {
         //     return Err(VerifierError::InvalidSelector);

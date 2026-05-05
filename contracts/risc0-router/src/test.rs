@@ -39,8 +39,6 @@ mod mock_verifier {
 
     #[contractimpl]
     impl RiscZeroVerifierInterface for MockVerifier {
-        type Proof = ();
-
         fn verify(
             env: Env,
             seal: Bytes,
@@ -189,7 +187,7 @@ fn test_add_verifier_tombstone_selector() {
 
     // Manually set a tombstone entry
     env.as_contract(&client.address, || {
-        env.storage().persistent().set(
+        env.storage().instance().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Tombstone,
         );
@@ -201,84 +199,6 @@ fn test_add_verifier_tombstone_selector() {
         unwrap_verifier_error(result),
         VerifierError::SelectorRemoved
     );
-}
-
-// =============================================================================
-// Get Verifier Tests
-// =============================================================================
-
-#[test]
-fn test_get_verifier_by_selector_unknown() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_by_selector(&selector);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorUnknown
-    );
-}
-
-#[test]
-fn test_get_verifier_by_selector_tombstone() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-
-    // Manually set a tombstone entry
-    env.as_contract(&client.address, || {
-        env.storage().persistent().set(
-            &DataKey::Verifier(selector.clone()),
-            &VerifierEntry::Tombstone,
-        );
-    });
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_by_selector(&selector);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorRemoved
-    );
-}
-
-#[test]
-fn test_get_verifier_from_seal() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0xDE, 0xAD, 0xBE, 0xEF]);
-    let verifier_address = Address::generate(&env);
-
-    client.add_verifier(&selector, &verifier_address);
-
-    let seal = create_seal_with_selector(&env, &selector);
-    let result = client.get_verifier_from_seal(&seal);
-    assert_eq!(result, verifier_address);
-}
-
-#[test]
-fn test_get_verifier_from_seal_unknown() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0xDE, 0xAD, 0xBE, 0xEF]);
-    let seal = create_seal_with_selector(&env, &selector);
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_from_seal(&seal);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorUnknown
-    );
-}
-
-#[test]
-fn test_get_verifier_from_seal_malformed_seal() {
-    let (env, _admin, client) = setup_env();
-    let seal = create_short_seal(&env);
-
-    let result = client.try_get_verifier_from_seal(&seal);
-    assert_eq!(unwrap_verifier_error(result), VerifierError::MalformedSeal);
 }
 
 // =============================================================================
@@ -648,7 +568,7 @@ fn test_remove_verifier_requires_admin_auth() {
     let verifier = Address::generate(&env);
 
     env.as_contract(&client.address, || {
-        env.storage().persistent().set(
+        env.storage().instance().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Active(verifier),
         );

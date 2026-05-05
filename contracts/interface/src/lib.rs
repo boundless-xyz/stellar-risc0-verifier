@@ -10,12 +10,9 @@
 
 #![no_std]
 
-use soroban_sdk::{Address, Bytes, BytesN, Env, contractclient};
+use soroban_sdk::{Bytes, BytesN, Env, contractclient};
 
-// Re-export types at crate root for convenience
-pub use types::{
-    ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode, VerifierEntry, VerifierError,
-};
+pub use types::{ExitCode, Output, Receipt, ReceiptClaim, SystemExitCode, VerifierError};
 
 mod types;
 
@@ -25,9 +22,6 @@ mod types;
 /// implement on Soroban. Currently, only the Groth16 proof system is supported.
 #[contractclient(name = "RiscZeroVerifierClient")]
 pub trait RiscZeroVerifierInterface {
-    /// The cryptographic proof system used by this verifier (e.g., Groth16).
-    type Proof;
-
     /// Verifies a RISC Zero proof with standard execution parameters.
     ///
     /// This is a convenience method for the common case where a guest program executes
@@ -143,35 +137,4 @@ pub trait RiscZeroVerifierInterface {
     /// verifier.verify_integrity(&env, receipt)?; // Returns Result<(), VerifierError>
     /// ```
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
-}
-
-/// Router interface for a `RiscZeroVerifierRouter` contract.
-///
-/// This interface exposes verification entrypoints alongside read-only routing helpers.
-#[contractclient(name = "RiscZeroVerifierRouterClient")]
-pub trait RiscZeroVerifierRouterInterface {
-    /// Verifies a receipt from its components using the selector embedded in the seal.
-    ///
-    /// The router uses the first 4 bytes of the seal as a selector to dispatch to the
-    /// appropriate verifier.
-    fn verify(
-        env: Env,
-        seal: Bytes,
-        image_id: BytesN<32>,
-        journal: BytesN<32>,
-    ) -> Result<(), VerifierError>;
-
-    /// Verifies receipt integrity using the selector embedded in the seal.
-    fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
-
-    /// Returns the raw verifier entry for a selector.
-    ///
-    /// `None` indicates the selector has never been set.
-    fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry>;
-
-    /// Returns the verifier address for a selector, reverting if unknown or removed.
-    fn get_verifier_by_selector(env: Env, selector: BytesN<4>) -> Result<Address, VerifierError>;
-
-    /// Returns the verifier address for the selector stored in the seal prefix.
-    fn get_verifier_from_seal(env: Env, seal: Bytes) -> Result<Address, VerifierError>;
 }
