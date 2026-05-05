@@ -17,7 +17,7 @@
 use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl, contracttype};
 
 use soroban_risc0_verifier_interface::{
-    Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError,
+    Receipt, ReceiptClaim, RiscZeroSelectorInterface, RiscZeroVerifierInterface, VerifierError,
 };
 
 #[cfg(test)]
@@ -56,15 +56,6 @@ impl RiscZeroMockVerifier {
     pub fn __constructor(env: Env, selector: BytesN<4>) {
         let selector: Bytes = selector.into();
         env.storage().instance().set(&DataKey::Selector, &selector);
-    }
-
-    /// Returns the configured selector as `BytesN<4>`.
-    ///
-    /// Returns [`VerifierError::InvalidSelector`] if the stored value is
-    /// missing or malformed.
-    pub fn selector(env: Env) -> Result<BytesN<4>, VerifierError> {
-        let selector = read_selector(&env)?;
-        BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
     }
 
     /// Build a mock receipt for the given image ID and journal digest.
@@ -141,5 +132,17 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
         }
 
         Ok(())
+    }
+}
+
+#[contractimpl]
+impl RiscZeroSelectorInterface for RiscZeroMockVerifier {
+    /// Returns the configured selector as `BytesN<4>`.
+    ///
+    /// Panics if the stored value is
+    /// missing or malformed.
+    fn selector(env: Env) -> BytesN<4> {
+        let selector = read_selector(&env).unwrap();
+        BytesN::try_from(&selector).unwrap()
     }
 }

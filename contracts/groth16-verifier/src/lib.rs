@@ -15,7 +15,7 @@
 #![no_std]
 
 use soroban_risc0_verifier_interface::{
-    Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError,
+    Receipt, ReceiptClaim, RiscZeroSelectorInterface, RiscZeroVerifierInterface, VerifierError,
 };
 use soroban_sdk::{Bytes, BytesN, Env, Vec, contract, contractimpl, crypto::bn254::Fr, vec};
 
@@ -36,11 +36,6 @@ pub struct RiscZeroGroth16Verifier;
 
 #[contractimpl]
 impl RiscZeroGroth16Verifier {
-    /// Returns the verifier's selector
-    pub fn selector(env: Env) -> BytesN<4> {
-        BytesN::from_array(&env, &constants::SELECTOR)
-    }
-
     /// Verifies a Groth16 proof with the given public signals.
     ///
     /// This function implements the core Groth16 verification algorithm using
@@ -127,6 +122,13 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
             true => Ok(()),
             false => Err(VerifierError::InvalidProof),
         }
+    }
+}
+
+#[contractimpl]
+impl RiscZeroSelectorInterface for RiscZeroGroth16Verifier {
+    fn selector(env: Env) -> BytesN<4> {
+        BytesN::from_array(&env, &constants::SELECTOR)
     }
 }
 

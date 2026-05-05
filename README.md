@@ -2,7 +2,6 @@
 [![Build](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/build-and-test.yml)
 [![Lint](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/linter.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/linter.yml)
 [![Dependencies](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/dependency-audit.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/dependency-audit.yml)
-[![Coverage](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/coverage.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/coverage.yml)
 
 Soroban contracts to verify execution of RISC0 zkVM programs on Stellar.
 

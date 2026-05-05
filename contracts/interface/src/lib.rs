@@ -159,3 +159,10 @@ pub trait RiscZeroVerifierInterface {
     /// ```
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError>;
 }
+
+/// Interface for retrieving the verifier's selector
+#[contractclient(name = "RiscZeroSelectorClient")]
+pub trait RiscZeroSelectorInterface {
+    /// Returns the 4-byte selector that identifies this verifier.
+    fn selector(env: Env) -> BytesN<4>;
+}

@@ -15,14 +15,12 @@
 #![no_std]
 
 use soroban_risc0_verifier_interface::{
-    Receipt, RiscZeroVerifierClient, RiscZeroVerifierInterface, VerifierError,
+    Receipt, RiscZeroSelectorClient, RiscZeroVerifierClient, RiscZeroVerifierInterface,
+    VerifierError,
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};
 use stellar_access::ownable::{Ownable, set_owner};
 use stellar_macros::only_owner;
-
-#[cfg(test)]
-mod test;
 
 /// Router mapping entry for a verifier selector.
 ///
@@ -62,11 +60,9 @@ impl RiscZeroVerifierRouter {
 
     /// Adds a verifier for the selector.
     #[only_owner]
-    pub fn add_verifier(
-        env: Env,
-        selector: BytesN<4>,
-        verifier: Address,
-    ) -> Result<(), VerifierError> {
+    pub fn add_verifier(env: Env, verifier: Address) -> Result<(), VerifierError> {
+        let selector = RiscZeroSelectorClient::new(&env, &verifier).selector();
+
         let key = DataKey::Verifier(selector);
         let verifier_address: Option<VerifierEntry> = env.storage().instance().get(&key);
 
@@ -165,3 +161,6 @@ fn selector_from_seal(seal: &Bytes) -> Result<BytesN<4>, VerifierError> {
 
 #[contractimpl(contracttrait)]
 impl Ownable for RiscZeroVerifierRouter {}
+
+#[cfg(test)]
+mod test;

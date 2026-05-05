@@ -38,7 +38,8 @@ impl ExampleContract {
     pub fn verify_proof(env: Env, seal: &Bytes, journal: &BytesN<32>) -> bool {
         let router_address = env.storage().instance().get(&VERIFIER_ROUTER).unwrap();
         let image_id = env.storage().instance().get(&IMAGE_ID).unwrap();
-        // call to the router to verify the proof; will return an error if verification fails
+        // call to the router to verify the proof; will return an error if verification
+        // fails
         let client = RiscZeroVerifierClient::new(&env, &router_address);
         client.verify(seal, &image_id, journal);
 
