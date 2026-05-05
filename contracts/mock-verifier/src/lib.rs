@@ -16,7 +16,9 @@
 
 use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl, contracttype};
 
-use risc0_verifier_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
+use soroban_risc0_verifier_interface::{
+    Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError,
+};
 
 #[cfg(test)]
 mod test;
@@ -115,7 +117,7 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
 
     fn verify_integrity(
         env: Env,
-        receipt: risc0_verifier_interface::Receipt,
+        receipt: soroban_risc0_verifier_interface::Receipt,
     ) -> Result<(), VerifierError> {
         if receipt.seal.len() < 4 {
             return Err(VerifierError::MalformedSeal);

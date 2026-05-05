@@ -145,7 +145,7 @@ pub trait RiscZeroVerifierInterface {
     /// # Examples
     ///
     /// ```ignore
-    /// use risc0_verifier_interface::{Receipt, ReceiptClaim};
+    /// use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
     ///
     /// // Create a receipt with the correct claim digest
     /// let claim = ReceiptClaim::new(&env, image_id, journal_digest);

@@ -14,7 +14,7 @@
 
 #![no_std]
 
-use risc0_verifier_interface::{
+use soroban_risc0_verifier_interface::{
     Receipt, RiscZeroVerifierClient, RiscZeroVerifierInterface, VerifierError,
 };
 use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};

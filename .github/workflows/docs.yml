@@ -23,6 +23,9 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: install rust
+        uses: risc0/risc0/.github/actions/rustup@main
+
       - name: Setup pages
         id: pages
         uses: actions/configure-pages@v5

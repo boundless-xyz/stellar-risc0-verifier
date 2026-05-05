@@ -1,5 +1,5 @@
 use super::*;
-use risc0_verifier_interface::{Receipt, ReceiptClaim};
+use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, contract, contractimpl, symbol_short,
     testutils::Address as _,
@@ -14,7 +14,7 @@ use soroban_sdk::{
 
 mod mock_verifier {
     use super::*;
-    use risc0_verifier_interface::{Receipt, RiscZeroVerifierInterface};
+    use soroban_risc0_verifier_interface::{Receipt, RiscZeroVerifierInterface};
 
     #[contract]
     pub struct MockVerifier;

@@ -29,6 +29,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: install rust
+        uses: risc0/risc0/.github/actions/rustup@main
+
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:

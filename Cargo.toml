@@ -1,9 +1,6 @@
 [workspace]
 members = [
-        "contracts/groth16-verifier",
-        "contracts/interface",
-        "contracts/mock-verifier",
-        "contracts/risc0-router",
+        "contracts/*"
 ]
 resolver = "3"
 
@@ -21,7 +18,7 @@ sha2 = "0.10.9"
 stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 
-risc0-verifier-interface = { path = "contracts/interface" }
+soroban-risc0-verifier-interface = { path = "contracts/interface" }
 
 [workspace.lints.rust]
 missing_docs = "deny"

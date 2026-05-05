@@ -66,7 +66,7 @@ pub enum VerifierError {
 /// # Example
 ///
 /// ```ignore
-/// use risc0_verifier_interface::{Receipt, ReceiptClaim, Seal};
+/// use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim, Seal};
 ///
 /// let claim = ReceiptClaim::new(&env, image_id, journal_digest);
 /// let receipt = Receipt {

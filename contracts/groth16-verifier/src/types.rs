@@ -17,7 +17,7 @@ use soroban_sdk::{
     crypto::bn254::{Bn254G1Affine as G1Affine, Bn254G2Affine as G2Affine},
 };
 
-use risc0_verifier_interface::VerifierError;
+use soroban_risc0_verifier_interface::VerifierError;
 
 const SELECTOR_SIZE: usize = 4;
 const FIELD_ELEMENT_SIZE: usize = 32;

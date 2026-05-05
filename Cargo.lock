@@ -1292,43 +1292,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "risc0-groth16-verifier"
-version = "0.1.0"
-dependencies = [
- "hex",
- "hex-literal 1.1.0",
- "risc0-circuit-recursion",
- "risc0-verifier-interface",
- "sha2",
- "soroban-sdk",
-]
-
-[[package]]
-name = "risc0-mock-verifier"
-version = "0.1.0"
-dependencies = [
- "risc0-verifier-interface",
- "soroban-sdk",
-]
-
-[[package]]
-name = "risc0-router"
-version = "0.1.0"
-dependencies = [
- "risc0-verifier-interface",
- "soroban-sdk",
- "stellar-access",
- "stellar-macros",
-]
-
-[[package]]
-name = "risc0-verifier-interface"
-version = "0.1.0"
-dependencies = [
- "soroban-sdk",
-]
-
-[[package]]
 name = "risc0-zkp"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1657,6 +1620,51 @@ dependencies = [
  "soroban-env-common",
  "soroban-env-host",
  "thiserror",
+]
+
+[[package]]
+name = "soroban-risc0-example"
+version = "0.1.0"
+dependencies = [
+ "soroban-risc0-verifier-interface",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "soroban-risc0-groth16-verifier"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "hex-literal 1.1.0",
+ "risc0-circuit-recursion",
+ "sha2",
+ "soroban-risc0-verifier-interface",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "soroban-risc0-mock-verifier"
+version = "0.1.0"
+dependencies = [
+ "soroban-risc0-verifier-interface",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "soroban-risc0-router"
+version = "0.1.0"
+dependencies = [
+ "soroban-risc0-verifier-interface",
+ "soroban-sdk",
+ "stellar-access",
+ "stellar-macros",
+]
+
+[[package]]
+name = "soroban-risc0-verifier-interface"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
 ]
 
 [[package]]

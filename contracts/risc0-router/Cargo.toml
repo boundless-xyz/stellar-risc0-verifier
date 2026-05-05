@@ -1,5 +1,5 @@
 [package]
-name = "risc0-router"
+name = "soroban-risc0-router"
 version = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
@@ -10,7 +10,7 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-risc0-verifier-interface = { workspace = true }
+soroban-risc0-verifier-interface = { workspace = true }
 soroban-sdk = { workspace = true }
 stellar-access = { workspace = true }
 stellar-macros = { workspace = true }

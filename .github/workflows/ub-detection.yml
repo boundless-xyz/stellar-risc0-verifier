@@ -23,6 +23,8 @@ jobs:
             device: cpu
     steps:
       - uses: actions/checkout@v4
+      - name: install rust
+        uses: risc0/risc0/.github/actions/rustup@main
       - run: |
           rustup +nightly component add miri
           cargo +nightly miri setup

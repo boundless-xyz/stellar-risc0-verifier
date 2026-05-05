@@ -100,8 +100,8 @@ fn bench_verify_integrity() {
     let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
     // Build receipt manually
-    let claim = risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
-    let receipt = risc0_verifier_interface::Receipt {
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let receipt = soroban_risc0_verifier_interface::Receipt {
         seal,
         claim_digest: claim.digest(&env),
     };
@@ -123,7 +123,7 @@ fn bench_receipt_claim_digest() {
         .into();
 
     // Build claim and compute digest
-    let claim = risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
     let _digest = claim.digest(&env);
 
     // Print results
