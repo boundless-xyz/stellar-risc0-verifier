@@ -21,7 +21,7 @@ sha2 = "0.10.9"
 stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 
-risc0-interface = { path = "contracts/interface" }
+risc0-verifier-interface = { path = "contracts/interface" }
 
 [workspace.lints.rust]
 missing_docs = "deny"

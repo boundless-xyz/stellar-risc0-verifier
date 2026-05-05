@@ -1,5 +1,5 @@
 [package]
-name = "mock-verifier"
+name = "risc0-mock-verifier"
 version = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
@@ -10,7 +10,7 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-risc0-interface = { workspace = true }
+risc0-verifier-interface = { workspace = true }
 soroban-sdk = { workspace = true }
 
 [dev-dependencies]

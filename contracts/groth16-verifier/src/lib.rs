@@ -14,7 +14,7 @@
 
 #![no_std]
 
-use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
+use risc0_verifier_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
 use soroban_sdk::{Bytes, BytesN, Env, Vec, contract, contractimpl, crypto::bn254::Fr, vec};
 
 use constants::{ALLOWED_CONTROL_ROOT, BN254_IDENTITY_CONTROL_ID, verification_key};
