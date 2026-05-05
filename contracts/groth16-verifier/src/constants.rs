@@ -20,10 +20,18 @@ use soroban_sdk::{
 
 // Control IDs generated from build.rs
 // These will change with each release of risc0
-// Bumping the risc0-circuit-recursion build dependency to the version corresponding to a RISC0 release will result in these being set correctly
+// Bumping the risc0-circuit-recursion build dependency to the version
+// corresponding to a RISC0 release will result in these being set correctly
 include!(concat!(env!("OUT_DIR"), "/control_ids.rs"));
 
+// Selector computed from control IDs and verification key digest, generated in
+// build.rs
+include!(concat!(env!("OUT_DIR"), "/selector.rs"));
+
 /// From risc0-ethereum: https://github.com/risc0/risc0-ethereum/blob/main/contracts/src/groth16/Groth16Verifier.sol
+/// This should be updated if the verification key changes, however there is no
+/// reason to expect this to ever change (it would required another trusted
+/// setup)
 pub fn verification_key(env: &Env) -> VerificationKey {
     VerificationKey {
         alpha: G1Affine::from_array(

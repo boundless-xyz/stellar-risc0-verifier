@@ -778,8 +778,10 @@ name = "groth16-verifier"
 version = "0.1.0"
 dependencies = [
  "hex",
+ "hex-literal 1.1.0",
  "risc0-circuit-recursion",
  "risc0-interface",
+ "sha2",
  "soroban-sdk",
 ]
 
@@ -854,6 +856,12 @@ name = "hex-literal"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
+
+[[package]]
+name = "hex-literal"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hmac"
@@ -962,9 +970,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc2af9a1119c51f12a14607e783cb977bde58bc069ff0c3da1095e635d70654"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
 ]
@@ -1333,7 +1341,7 @@ dependencies = [
  "cfg-if",
  "digest",
  "hex",
- "hex-literal",
+ "hex-literal 0.4.1",
  "metal",
  "paste",
  "rand_core 0.9.5",
@@ -1602,7 +1610,7 @@ dependencies = [
  "elliptic-curve",
  "generic-array",
  "getrandom",
- "hex-literal",
+ "hex-literal 0.4.1",
  "hmac",
  "k256",
  "num-derive",

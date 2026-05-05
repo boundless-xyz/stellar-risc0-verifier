@@ -1,9 +1,9 @@
 [workspace]
 members = [
-        "contracts/interface",
         "contracts/groth16-verifier",
-        "contracts/risc0-router",
+        "contracts/interface",
         "contracts/mock-verifier",
+        "contracts/risc0-router",
 ]
 resolver = "3"
 
@@ -16,10 +16,12 @@ license = "Apache-2.0"
 [workspace.dependencies]
 soroban-sdk = "25.1.0"
 hex = "0.4.3"
+hex-literal = "1.1.0"
+sha2 = "0.10.9"
 stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
 
-risc0-interface = { path = "contracts/interface"}
+risc0-interface = { path = "contracts/interface" }
 
 [workspace.lints.rust]
 missing_docs = "deny"

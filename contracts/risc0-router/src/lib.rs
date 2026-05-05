@@ -14,8 +14,9 @@ mod test;
 /// - `Active(Address)` means the selector routes to that verifier contract.
 /// - `Tombstone` means the selector was removed and can never be reused.
 ///
-/// The router `verifiers` getter returns `None` when a selector has never been set,
-/// allowing callers to distinguish "unset" vs "removed" without relying on errors.
+/// The router `verifiers` getter returns `None` when a selector has never been
+/// set, allowing callers to distinguish "unset" vs "removed" without relying on
+/// errors.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VerifierEntry {

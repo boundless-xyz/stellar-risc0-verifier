@@ -27,38 +27,33 @@ mod utils;
 
 /// Groth16 verifier contract for RISC Zero receipts of execution.
 ///
-/// This contract implements the [`RiscZeroVerifierInterface`] using Groth16 zero-knowledge
-/// proofs over the BN254 elliptic curve.
+/// This contract implements the [`RiscZeroVerifierInterface`] using Groth16
+/// zero-knowledge proofs over the BN254 elliptic curve.
 #[contract]
 pub struct RiscZeroGroth16Verifier;
 
 #[contractimpl]
 impl RiscZeroGroth16Verifier {
-    // /// Returns the verifier's selector
-    // pub fn selector(env: Env) -> BytesN<4> {
-    //     BytesN::from_array(&env, &Self::SELECTOR)
-    // }
-
-    // /// Returns the RISC Zero verifier version
-    // pub fn version(env: Env) -> String {
-    //     String::from_str(&env, Self::VERSION)
-    // }
+    /// Returns the verifier's selector
+    pub fn selector(env: Env) -> BytesN<4> {
+        BytesN::from_array(&env, &constants::SELECTOR)
+    }
 
     /// Verifies a Groth16 proof with the given public signals.
     ///
-    /// This function implements the core Groth16 verification algorithm using the BN254
-    /// pairing-friendly elliptic curve. The verification checks the pairing equation:
+    /// This function implements the core Groth16 verification algorithm using
+    /// the BN254 pairing-friendly elliptic curve. The verification checks
+    /// the pairing equation:
     ///
     /// `e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1`
     ///
-    /// where `vk_x` is computed as a linear combination of the verification key's IC points
-    /// weighted by the public signals.
+    /// where `vk_x` is computed as a linear combination of the verification
+    /// key's IC points weighted by the public signals.
     ///
     /// # Parameters
     ///
     /// - `proof`: The Groth16 proof containing points A, B, and C
     /// - `pub_signals`: Vector of public input signals (scalar field elements)
-    ///
     pub fn verify_proof(
         env: Env,
         proof: Groth16Proof,
@@ -106,9 +101,9 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
         let seal = Groth16Seal::try_from(receipt.seal)?;
 
-        // if seal.selector != Self::SELECTOR {
-        //     return Err(VerifierError::InvalidSelector);
-        // }
+        if seal.selector != constants::SELECTOR {
+            return Err(VerifierError::InvalidSelector);
+        }
 
         let (claim_0, claim_1) = split_digest(&env, receipt.claim_digest);
         let (control_root_0, control_root_1) =

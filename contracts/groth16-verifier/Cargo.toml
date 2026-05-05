@@ -1,8 +1,8 @@
 [package]
 name = "groth16-verifier"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
 publish = false
 
 [lib]
@@ -10,12 +10,14 @@ crate-type = ["lib", "cdylib"]
 doctest = false
 
 [dependencies]
-soroban-sdk = { workspace = true }
 risc0-interface = { workspace = true }
+soroban-sdk = { workspace = true }
 
 [build-dependencies]
+hex-literal = { workspace = true }
 risc0-circuit-recursion = { version = "4.0.4", default-features = false }
+sha2 = { workspace = true }
 
 [dev-dependencies]
-soroban-sdk = { workspace = true, features = ["testutils"] }
 hex = { workspace = true }
+soroban-sdk = { workspace = true, features = ["testutils"] }
