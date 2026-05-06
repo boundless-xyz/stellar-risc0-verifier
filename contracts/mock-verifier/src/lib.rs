@@ -1,15 +1,27 @@
+// Copyright 2026 Boundless Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![no_std]
 
 use soroban_sdk::{Bytes, BytesN, Env, contract, contractimpl, contracttype};
 
-use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
+use soroban_risc0_verifier_interface::{
+    Receipt, ReceiptClaim, RiscZeroSelectorInterface, RiscZeroVerifierInterface, VerifierError,
+};
 
 #[cfg(test)]
 mod test;
-
-const DAY_IN_LEDGERS: u32 = 17_280;
-const VERIFIER_EXTEND_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
-const VERIFIER_TTL_THRESHOLD: u32 = VERIFIER_EXTEND_AMOUNT - DAY_IN_LEDGERS;
 
 #[contracttype]
 enum DataKey {
@@ -19,15 +31,8 @@ enum DataKey {
 fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
     let key = DataKey::Selector;
     env.storage()
-        .persistent()
+        .instance()
         .get(&key)
-        .inspect(|_| {
-            env.storage().persistent().extend_ttl(
-                &key,
-                VERIFIER_TTL_THRESHOLD,
-                VERIFIER_EXTEND_AMOUNT,
-            );
-        })
         .ok_or(VerifierError::InvalidSelector)
 }
 
@@ -35,12 +40,14 @@ fn read_selector(env: &Env) -> Result<Bytes, VerifierError> {
 ///
 /// !!! DANGER: USE IT ONLY FOR TESTING.
 ///
-/// This verifier accepts a mock seal and does not perform any cryptographic proof verification. It
-/// is meant for local development, integration tests, and end-to-end testing flows where real
-/// proofs are not yet available or are intentionally bypassed.
+/// This verifier accepts a mock seal and does not perform any cryptographic
+/// proof verification. It is meant for local development, integration tests,
+/// and end-to-end testing flows where real proofs are not yet available or are
+/// intentionally bypassed.
 ///
-/// Do not deploy or rely on this contract in production environments. It provides no security
-/// guarantees and will accept any receipt that matches the mock format.
+/// Do not deploy or rely on this contract in production environments. It
+/// provides no security guarantees and will accept any receipt that matches the
+/// mock format.
 #[contract]
 pub struct RiscZeroMockVerifier;
 
@@ -48,22 +55,13 @@ pub struct RiscZeroMockVerifier;
 impl RiscZeroMockVerifier {
     pub fn __constructor(env: Env, selector: BytesN<4>) {
         let selector: Bytes = selector.into();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Selector, &selector);
-    }
-
-    /// Returns the configured selector as `BytesN<4>`.
-    ///
-    /// Returns [`VerifierError::InvalidSelector`] if the stored value is missing or malformed.
-    pub fn selector(env: Env) -> Result<BytesN<4>, VerifierError> {
-        let selector = read_selector(&env)?;
-        BytesN::try_from(&selector).map_err(|_| VerifierError::InvalidSelector)
+        env.storage().instance().set(&DataKey::Selector, &selector);
     }
 
     /// Build a mock receipt for the given image ID and journal digest.
     ///
-    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
+    /// The seal format matches the Ethereum mock verifier: `selector ||
+    /// claim_digest`.
     pub fn mock_prove(
         env: Env,
         image_id: BytesN<32>,
@@ -76,7 +74,8 @@ impl RiscZeroMockVerifier {
 
     /// Build a mock receipt for a precomputed claim digest.
     ///
-    /// The seal format matches the Ethereum mock verifier: `selector || claim_digest`.
+    /// The seal format matches the Ethereum mock verifier: `selector ||
+    /// claim_digest`.
     pub fn mock_prove_claim(env: Env, claim_digest: BytesN<32>) -> Result<Receipt, VerifierError> {
         let selector = read_selector(&env)?;
         let mut seal = Bytes::new(&env);
@@ -89,11 +88,10 @@ impl RiscZeroMockVerifier {
 
 #[contractimpl]
 impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
-    type Proof = ();
-
     /// Verify a mock seal by reconstructing the claim digest from inputs.
     ///
-    /// Returns a structured [`VerifierError`] on selector mismatch or invalid proof.
+    /// Returns a structured [`VerifierError`] on selector mismatch or invalid
+    /// proof.
     fn verify(
         env: Env,
         seal: Bytes,
@@ -108,7 +106,10 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
         Self::verify_integrity(env, receipt)
     }
 
-    fn verify_integrity(env: Env, receipt: risc0_interface::Receipt) -> Result<(), VerifierError> {
+    fn verify_integrity(
+        env: Env,
+        receipt: soroban_risc0_verifier_interface::Receipt,
+    ) -> Result<(), VerifierError> {
         if receipt.seal.len() < 4 {
             return Err(VerifierError::MalformedSeal);
         }
@@ -131,5 +132,17 @@ impl RiscZeroVerifierInterface for RiscZeroMockVerifier {
         }
 
         Ok(())
+    }
+}
+
+#[contractimpl]
+impl RiscZeroSelectorInterface for RiscZeroMockVerifier {
+    /// Returns the configured selector as `BytesN<4>`.
+    ///
+    /// Panics if the stored value is
+    /// missing or malformed.
+    fn selector(env: Env) -> BytesN<4> {
+        let selector = read_selector(&env).unwrap();
+        BytesN::try_from(&selector).unwrap()
     }
 }

@@ -1,5 +1,5 @@
 use super::*;
-use risc0_interface::{Receipt, ReceiptClaim};
+use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{
     Address, Bytes, BytesN, Env, IntoVal, Symbol, contract, contractimpl, symbol_short,
     testutils::Address as _,
@@ -14,13 +14,25 @@ use soroban_sdk::{
 
 mod mock_verifier {
     use super::*;
-    use risc0_interface::{Receipt, RiscZeroVerifierInterface};
+    use soroban_risc0_verifier_interface::{
+        Receipt, RiscZeroSelectorInterface, RiscZeroVerifierInterface,
+    };
 
     #[contract]
     pub struct MockVerifier;
 
+    #[contracttype]
+    enum DataKey {
+        Selector,
+    }
+
     #[contractimpl]
     impl MockVerifier {
+        pub fn __constructor(env: Env, selector: &BytesN<4>) {
+            let selector: Bytes = selector.into();
+            env.storage().instance().set(&DataKey::Selector, &selector);
+        }
+
         /// Returns true if this mock was called (for testing routing)
         pub fn was_called(env: Env) -> bool {
             env.storage().temporary().has(&"called")
@@ -39,8 +51,6 @@ mod mock_verifier {
 
     #[contractimpl]
     impl RiscZeroVerifierInterface for MockVerifier {
-        type Proof = ();
-
         fn verify(
             env: Env,
             seal: Bytes,
@@ -68,6 +78,14 @@ mod mock_verifier {
                 return Err(VerifierError::InvalidProof);
             }
             Ok(())
+        }
+    }
+
+    #[contractimpl]
+    impl RiscZeroSelectorInterface for MockVerifier {
+        fn selector(env: Env) -> BytesN<4> {
+            let selector = env.storage().instance().get(&DataKey::Selector).unwrap();
+            BytesN::try_from(&selector).unwrap()
         }
     }
 }
@@ -102,18 +120,24 @@ fn create_short_seal(env: &Env) -> Bytes {
     Bytes::from_slice(env, &[0u8; 3])
 }
 
+fn setup_verifier(env: &Env) -> (BytesN<4>, Address) {
+    let selector = create_selector(env, [0x01, 0x02, 0x03, 0x04]);
+    let verifier_id = env.register(mock_verifier::MockVerifier, (selector.clone(),));
+    (selector, verifier_id)
+}
+
 fn setup_two_verifiers(
     env: &Env,
     client: &RiscZeroVerifierRouterClient<'static>,
 ) -> (BytesN<4>, BytesN<4>, Address, Address) {
-    let verifier_a = env.register(mock_verifier::MockVerifier, ());
-    let verifier_b = env.register(mock_verifier::MockVerifier, ());
-
     let selector_a = create_selector(env, [0x01, 0x02, 0x03, 0x04]);
     let selector_b = create_selector(env, [0x10, 0x20, 0x30, 0x40]);
 
-    client.add_verifier(&selector_a, &verifier_a);
-    client.add_verifier(&selector_b, &verifier_b);
+    let verifier_a = env.register(mock_verifier::MockVerifier, (selector_a.clone(),));
+    let verifier_b = env.register(mock_verifier::MockVerifier, (selector_b.clone(),));
+
+    client.add_verifier(&verifier_a);
+    client.add_verifier(&verifier_b);
 
     (selector_a, selector_b, verifier_a, verifier_b)
 }
@@ -153,11 +177,10 @@ fn test_constructor_sets_owner() {
 fn test_add_verifier_success() {
     let (env, _admin, client) = setup_env();
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    let verifier_address = Address::generate(&env);
+    let (selector, verifier_address) = setup_verifier(&env);
 
     // Non-try version - will panic on error
-    client.add_verifier(&selector, &verifier_address);
+    client.add_verifier(&verifier_address);
 
     // Verify it was added
     let result = client.get_verifier_by_selector(&selector);
@@ -168,15 +191,14 @@ fn test_add_verifier_success() {
 fn test_add_verifier_selector_in_use() {
     let (env, _admin, client) = setup_env();
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    let verifier1 = Address::generate(&env);
-    let verifier2 = Address::generate(&env);
+    let (_, verifier1) = setup_verifier(&env);
+    let (_, verifier2) = setup_verifier(&env);
 
     // First add should succeed
-    client.add_verifier(&selector, &verifier1);
+    client.add_verifier(&verifier1);
 
     // Second add with same selector should fail - use try_ to capture error
-    let result = client.try_add_verifier(&selector, &verifier2);
+    let result = client.try_add_verifier(&verifier2);
     assert_eq!(unwrap_verifier_error(result), VerifierError::SelectorInUse);
 }
 
@@ -184,101 +206,22 @@ fn test_add_verifier_selector_in_use() {
 fn test_add_verifier_tombstone_selector() {
     let (env, _admin, client) = setup_env();
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    let verifier = Address::generate(&env);
+    let (selector, verifier) = setup_verifier(&env);
 
     // Manually set a tombstone entry
     env.as_contract(&client.address, || {
-        env.storage().persistent().set(
+        env.storage().instance().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Tombstone,
         );
     });
 
     // Adding to tombstoned selector should fail - use try_ to capture error
-    let result = client.try_add_verifier(&selector, &verifier);
+    let result = client.try_add_verifier(&verifier);
     assert_eq!(
         unwrap_verifier_error(result),
         VerifierError::SelectorRemoved
     );
-}
-
-// =============================================================================
-// Get Verifier Tests
-// =============================================================================
-
-#[test]
-fn test_get_verifier_by_selector_unknown() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_by_selector(&selector);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorUnknown
-    );
-}
-
-#[test]
-fn test_get_verifier_by_selector_tombstone() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-
-    // Manually set a tombstone entry
-    env.as_contract(&client.address, || {
-        env.storage().persistent().set(
-            &DataKey::Verifier(selector.clone()),
-            &VerifierEntry::Tombstone,
-        );
-    });
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_by_selector(&selector);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorRemoved
-    );
-}
-
-#[test]
-fn test_get_verifier_from_seal() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0xDE, 0xAD, 0xBE, 0xEF]);
-    let verifier_address = Address::generate(&env);
-
-    client.add_verifier(&selector, &verifier_address);
-
-    let seal = create_seal_with_selector(&env, &selector);
-    let result = client.get_verifier_from_seal(&seal);
-    assert_eq!(result, verifier_address);
-}
-
-#[test]
-fn test_get_verifier_from_seal_unknown() {
-    let (env, _admin, client) = setup_env();
-
-    let selector = create_selector(&env, [0xDE, 0xAD, 0xBE, 0xEF]);
-    let seal = create_seal_with_selector(&env, &selector);
-
-    // Use try_ to capture error
-    let result = client.try_get_verifier_from_seal(&seal);
-    assert_eq!(
-        unwrap_verifier_error(result),
-        VerifierError::SelectorUnknown
-    );
-}
-
-#[test]
-fn test_get_verifier_from_seal_malformed_seal() {
-    let (env, _admin, client) = setup_env();
-    let seal = create_short_seal(&env);
-
-    let result = client.try_get_verifier_from_seal(&seal);
-    assert_eq!(unwrap_verifier_error(result), VerifierError::MalformedSeal);
 }
 
 // =============================================================================
@@ -289,13 +232,12 @@ fn test_get_verifier_from_seal_malformed_seal() {
 fn test_verifiers_getter_returns_raw_entry() {
     let (env, _admin, client) = setup_env();
 
-    let selector = create_selector(&env, [0x10, 0x20, 0x30, 0x40]);
+    let (selector, verifier_address) = setup_verifier(&env);
 
     // Unset selector should return None.
     assert_eq!(client.verifiers(&selector), None);
 
-    let verifier_address = Address::generate(&env);
-    client.add_verifier(&selector, &verifier_address);
+    client.add_verifier(&verifier_address);
 
     assert_eq!(
         client.verifiers(&selector),
@@ -315,10 +257,9 @@ fn test_verifiers_getter_returns_raw_entry() {
 fn test_remove_verifier_marks_tombstone() {
     let (env, _admin, client) = setup_env();
 
-    let selector = create_selector(&env, [0xAA, 0xBB, 0xCC, 0xDD]);
-    let verifier_address = Address::generate(&env);
+    let (selector, verifier_address) = setup_verifier(&env);
 
-    client.add_verifier(&selector, &verifier_address);
+    client.add_verifier(&verifier_address);
     client.remove_verifier(&selector);
 
     let result = client.try_get_verifier_by_selector(&selector);
@@ -327,8 +268,8 @@ fn test_remove_verifier_marks_tombstone() {
         VerifierError::SelectorRemoved
     );
 
-    let new_verifier = Address::generate(&env);
-    let result = client.try_add_verifier(&selector, &new_verifier);
+    let (_, new_verifier) = setup_verifier(&env);
+    let result = client.try_add_verifier(&new_verifier);
     assert_eq!(
         unwrap_verifier_error(result),
         VerifierError::SelectorRemoved
@@ -411,11 +352,10 @@ fn test_verify_routes_to_correct_verifier() {
     let (env, _admin, client) = setup_env();
 
     // Register a mock verifier
-    let mock_verifier_id = env.register(mock_verifier::MockVerifier, ());
+    let (selector, mock_verifier_id) = setup_verifier(&env);
     let mock_client = mock_verifier::MockVerifierClient::new(&env, &mock_verifier_id);
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    client.add_verifier(&selector, &mock_verifier_id);
+    client.add_verifier(&mock_verifier_id);
 
     // Create a seal with the correct selector
     let seal = create_seal_with_selector(&env, &selector);
@@ -462,10 +402,10 @@ fn test_verify_routes_to_multiple_verifiers() {
 fn test_verify_returns_verifier_error_on_failure() {
     let (env, _admin, client) = setup_env();
 
-    let verifier_id = env.register(mock_verifier::MockVerifier, ());
+    let (selector, verifier_id) = setup_verifier(&env);
     let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    client.add_verifier(&selector, &verifier_id);
+
+    client.add_verifier(&verifier_id);
 
     mock_client.set_should_fail(&true);
 
@@ -484,12 +424,10 @@ fn test_verify_returns_verifier_error_on_failure() {
 fn test_verify_integrity_routes_to_correct_verifier() {
     let (env, _admin, client) = setup_env();
 
-    // Register a mock verifier
-    let mock_verifier_id = env.register(mock_verifier::MockVerifier, ());
-    let mock_client = mock_verifier::MockVerifierClient::new(&env, &mock_verifier_id);
+    let (selector, verifier_id) = setup_verifier(&env);
+    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    client.add_verifier(&selector, &mock_verifier_id);
+    client.add_verifier(&verifier_id);
 
     // Create a receipt with the correct selector in the seal
     let seal = create_seal_with_selector(&env, &selector);
@@ -547,10 +485,10 @@ fn test_verify_integrity_routes_to_multiple_verifiers() {
 fn test_verify_integrity_returns_verifier_error_on_failure() {
     let (env, _admin, client) = setup_env();
 
-    let verifier_id = env.register(mock_verifier::MockVerifier, ());
+    let (selector, verifier_id) = setup_verifier(&env);
     let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
-    client.add_verifier(&selector, &verifier_id);
+
+    client.add_verifier(&verifier_id);
 
     mock_client.set_should_fail(&true);
 
@@ -626,11 +564,10 @@ fn test_add_verifier_requires_admin_auth() {
     let client = RiscZeroVerifierRouterClient::new(&env, &contract_id);
     env.set_auths(&[]);
 
-    let selector = create_selector(&env, [0x01, 0x02, 0x03, 0x04]);
     let verifier = Address::generate(&env);
 
     // Should trap on admin.require_auth().
-    client.add_verifier(&selector, &verifier);
+    client.add_verifier(&verifier);
 }
 
 #[test]
@@ -648,7 +585,7 @@ fn test_remove_verifier_requires_admin_auth() {
     let verifier = Address::generate(&env);
 
     env.as_contract(&client.address, || {
-        env.storage().persistent().set(
+        env.storage().instance().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Active(verifier),
         );

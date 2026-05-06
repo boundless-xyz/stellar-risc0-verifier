@@ -1,0 +1,17 @@
+[package]
+name = "soroban-risc0-example"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+publish = false
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-risc0-verifier-interface = { workspace = true }
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

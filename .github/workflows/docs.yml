@@ -8,13 +8,23 @@ jobs:
     permissions:
       contents: write
     name: Documentation
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: install rust
+        uses: risc0/risc0/.github/actions/rustup@main
 
       - name: Setup pages
         id: pages
@@ -24,7 +34,7 @@ jobs:
         run: cargo clean --doc
 
       - name: Build documentation
-        run: RUSTDOCFLAGS="--html-in-header" cargo doc --no-deps -p template_crate
+        run: cargo doc --no-deps
 
       - name: Remove lock file
         run: rm target/doc/.lock
@@ -41,7 +51,14 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     needs: docs
     steps:
       - name: Deploy to GitHub Pages

@@ -1,9 +1,8 @@
 [package]
-name = "risc0-interface"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-publish = false
+name = "soroban-risc0-verifier-interface"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
 
 [lib]
 crate-type = ["lib"]
@@ -11,7 +10,6 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

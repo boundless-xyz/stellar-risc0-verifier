@@ -1,3 +1,17 @@
+// Copyright 2026 Boundless Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 extern crate std;
 
 use soroban_sdk::{Bytes, BytesN, Env};
@@ -86,8 +100,8 @@ fn bench_verify_integrity() {
     let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
     // Build receipt manually
-    let claim = risc0_interface::ReceiptClaim::new(&env, image_id, journal_digest);
-    let receipt = risc0_interface::Receipt {
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let receipt = soroban_risc0_verifier_interface::Receipt {
         seal,
         claim_digest: claim.digest(&env),
     };
@@ -109,7 +123,7 @@ fn bench_receipt_claim_digest() {
         .into();
 
     // Build claim and compute digest
-    let claim = risc0_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
     let _digest = claim.digest(&env);
 
     // Print results

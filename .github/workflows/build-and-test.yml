@@ -12,9 +12,18 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}", "${{ matrix.device }}" ]
+    strategy:
+      matrix:
+        include:
+          - os: Linux
+            arch: X64
+            feature: default
+            device: cpu
     steps:
     - uses: actions/checkout@v4
+    - name: install rust
+      uses: risc0/risc0/.github/actions/rustup@main
     - name: Build
       run: cargo test --workspace --verbose --no-run
     - name: Run tests

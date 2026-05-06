@@ -3,7 +3,7 @@ extern crate std;
 use soroban_sdk::{Bytes, BytesN, Env};
 
 use crate::{RiscZeroMockVerifier, RiscZeroMockVerifierClient};
-use risc0_interface::{Receipt, ReceiptClaim, VerifierError};
+use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim, VerifierError};
 
 fn bytes_from<const N: usize>(env: &Env, value: &BytesN<N>) -> Bytes {
     Bytes::from_array(env, &value.to_array())

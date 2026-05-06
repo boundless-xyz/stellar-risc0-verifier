@@ -1,68 +1,62 @@
+// Copyright 2026 Boundless Foundation, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #![no_std]
 
-use risc0_interface::{Receipt, ReceiptClaim, RiscZeroVerifierInterface, VerifierError};
-use soroban_sdk::{
-    Bytes, BytesN, Env, String, Vec, contract, contractimpl, crypto::bn254::Fr, vec,
+use soroban_risc0_verifier_interface::{
+    Receipt, ReceiptClaim, RiscZeroSelectorInterface, RiscZeroVerifierInterface, VerifierError,
 };
+use soroban_sdk::{Bytes, BytesN, Env, Vec, contract, contractimpl, crypto::bn254::Fr, vec};
 
-use types::{Groth16Proof, Groth16Seal, VerificationKeyBytes};
+use constants::{ALLOWED_CONTROL_ROOT, BN254_IDENTITY_CONTROL_ID, verification_key};
+use types::{Groth16Proof, Groth16Seal};
+use utils::split_digest;
 
-#[cfg(test)]
-mod test;
+mod constants;
 mod types;
+mod utils;
 
 /// Groth16 verifier contract for RISC Zero receipts of execution.
 ///
-/// This contract implements the [`RiscZeroVerifierInterface`] using Groth16 zero-knowledge
-/// proofs over the BN254 elliptic curve.
+/// This contract implements the [`RiscZeroVerifierInterface`] using Groth16
+/// zero-knowledge proofs over the BN254 elliptic curve.
 #[contract]
 pub struct RiscZeroGroth16Verifier;
 
 #[contractimpl]
 impl RiscZeroGroth16Verifier {
-    /// Groth16 verification key for the RISC Zero system.
-    ///
-    /// This verification key is generated at build time from `vk.json`
-    const VERIFICATION_KEY: VerificationKeyBytes =
-        include!(concat!(env!("OUT_DIR"), "/verification_key.rs"));
-
-    const VERSION: &'static str = include!(concat!(env!("OUT_DIR"), "/version.rs"));
-    const CONTROL_ROOT_0: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_0.rs"));
-    const CONTROL_ROOT_1: [u8; 16] = include!(concat!(env!("OUT_DIR"), "/control_root_1.rs"));
-    const BN254_CONTROL_ID: [u8; 32] = include!(concat!(env!("OUT_DIR"), "/bn254_control_id.rs"));
-    const SELECTOR: [u8; 4] = include!(concat!(env!("OUT_DIR"), "/selector.rs"));
-
-    /// Returns the verifier's selector
-    pub fn selector(env: Env) -> BytesN<4> {
-        BytesN::from_array(&env, &Self::SELECTOR)
-    }
-
-    /// Returns the RISC Zero verifier version
-    pub fn version(env: Env) -> String {
-        String::from_str(&env, Self::VERSION)
-    }
-
     /// Verifies a Groth16 proof with the given public signals.
     ///
-    /// This function implements the core Groth16 verification algorithm using the BN254
-    /// pairing-friendly elliptic curve. The verification checks the pairing equation:
+    /// This function implements the core Groth16 verification algorithm using
+    /// the BN254 pairing-friendly elliptic curve. The verification checks
+    /// the pairing equation:
     ///
     /// `e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1`
     ///
-    /// where `vk_x` is computed as a linear combination of the verification key's IC points
-    /// weighted by the public signals.
+    /// where `vk_x` is computed as a linear combination of the verification
+    /// key's IC points weighted by the public signals.
     ///
     /// # Parameters
     ///
     /// - `proof`: The Groth16 proof containing points A, B, and C
     /// - `pub_signals`: Vector of public input signals (scalar field elements)
-    ///
     pub fn verify_proof(
         env: Env,
         proof: Groth16Proof,
         pub_signals: Vec<Fr>,
     ) -> Result<bool, VerifierError> {
-        let vk = Self::VERIFICATION_KEY.verification_key(&env);
+        let vk = verification_key(&env);
         let bn = env.crypto().bn254();
 
         if pub_signals.len() + 1 != vk.ic.len() as u32 {
@@ -87,8 +81,6 @@ impl RiscZeroGroth16Verifier {
 
 #[contractimpl]
 impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
-    type Proof = Groth16Seal;
-
     fn verify(
         env: Env,
         seal: Bytes,
@@ -104,28 +96,18 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     }
 
     fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
-        let seal = Self::Proof::try_from(receipt.seal)?;
+        let seal = Groth16Seal::try_from(receipt.seal)?;
 
-        if seal.selector != Self::SELECTOR {
+        if seal.selector != constants::SELECTOR {
             return Err(VerifierError::InvalidSelector);
         }
 
         let (claim_0, claim_1) = split_digest(&env, receipt.claim_digest);
-
-        let control_root_0 = {
-            let mut bytes = [0u8; 32];
-            bytes[16..32].copy_from_slice(&Self::CONTROL_ROOT_0);
-            BytesN::from_array(&env, &bytes)
-        };
-
-        let control_root_1 = {
-            let mut bytes = [0u8; 32];
-            bytes[16..32].copy_from_slice(&Self::CONTROL_ROOT_1);
-            BytesN::from_array(&env, &bytes)
-        };
+        let (control_root_0, control_root_1) =
+            split_digest(&env, BytesN::from_array(&env, &ALLOWED_CONTROL_ROOT));
 
         // Convert BN254_CONTROL_ID to BytesN<32>
-        let bn254_control_id: BytesN<32> = BytesN::from_array(&env, &Self::BN254_CONTROL_ID);
+        let bn254_control_id: BytesN<32> = BytesN::from_array(&env, &BN254_IDENTITY_CONTROL_ID);
 
         // Create public signals as Fr field elements
         let mut pub_signals = Vec::new(&env);
@@ -143,38 +125,12 @@ impl RiscZeroVerifierInterface for RiscZeroGroth16Verifier {
     }
 }
 
-/// Splits a digest into two 32-byte parts after reversing byte order.
-///
-/// This function reverses the byte order of the input digest and splits it into
-/// two 32-byte values (zero-padded on the left), matching Solidity's convention
-/// where claim_0 gets the upper 128 bits and claim_1 gets the lower 128 bits.
-///
-/// # Parameters
-///
-/// - `digest`: A 32-byte digest to split
-///
-/// # Returns
-///
-/// A tuple of two 32-byte values: (upper 128 bits, lower 128 bits) zero-padded
-fn split_digest(env: &Env, digest: BytesN<32>) -> (BytesN<32>, BytesN<32>) {
-    // Get the digest as a byte array
-    let mut bytes = digest.to_array();
-
-    // Reverse the byte order (equivalent to reverseByteOrderUint256)
-    bytes.reverse();
-
-    // Split into two 16-byte parts and convert to 32-byte (zero-padded on left)
-    // Note: Solidity assigns upper bits to claim_0, lower bits to claim_1
-    let mut claim_0 = [0u8; 32];
-    let mut claim_1 = [0u8; 32];
-
-    // Copy the upper 16 bytes to claim_0 (zero-pad left)
-    claim_0[16..32].copy_from_slice(&bytes[16..32]);
-    // Copy the lower 16 bytes to claim_1 (zero-pad left)
-    claim_1[16..32].copy_from_slice(&bytes[0..16]);
-
-    (
-        BytesN::from_array(env, &claim_0),
-        BytesN::from_array(env, &claim_1),
-    )
+#[contractimpl]
+impl RiscZeroSelectorInterface for RiscZeroGroth16Verifier {
+    fn selector(env: Env) -> BytesN<4> {
+        BytesN::from_array(&env, &constants::SELECTOR)
+    }
 }
+
+#[cfg(test)]
+mod test;
