@@ -30,7 +30,9 @@ mod mock_verifier {
     impl MockVerifier {
         pub fn __constructor(env: Env, selector: &BytesN<4>) {
             let selector: Bytes = selector.into();
-            env.storage().instance().set(&DataKey::Selector, &selector);
+            env.storage()
+                .persistent()
+                .set(&DataKey::Selector, &selector);
         }
 
         /// Returns true if this mock was called (for testing routing)
@@ -84,7 +86,7 @@ mod mock_verifier {
     #[contractimpl]
     impl RiscZeroSelectorInterface for MockVerifier {
         fn selector(env: Env) -> BytesN<4> {
-            let selector = env.storage().instance().get(&DataKey::Selector).unwrap();
+            let selector = env.storage().persistent().get(&DataKey::Selector).unwrap();
             BytesN::try_from(&selector).unwrap()
         }
     }
@@ -210,7 +212,7 @@ fn test_add_verifier_tombstone_selector() {
 
     // Manually set a tombstone entry
     env.as_contract(&client.address, || {
-        env.storage().instance().set(
+        env.storage().persistent().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Tombstone,
         );
@@ -585,7 +587,7 @@ fn test_remove_verifier_requires_admin_auth() {
     let verifier = Address::generate(&env);
 
     env.as_contract(&client.address, || {
-        env.storage().instance().set(
+        env.storage().persistent().set(
             &DataKey::Verifier(selector.clone()),
             &VerifierEntry::Active(verifier),
         );

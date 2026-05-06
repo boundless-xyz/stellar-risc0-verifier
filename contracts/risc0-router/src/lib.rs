@@ -18,7 +18,9 @@ use soroban_risc0_verifier_interface::{
     Receipt, RiscZeroSelectorClient, RiscZeroVerifierClient, RiscZeroVerifierInterface,
     VerifierError,
 };
-use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contracttype};
+use soroban_sdk::{
+    Address, Bytes, BytesN, Env, contract, contractevent, contractimpl, contracttype,
+};
 use stellar_access::ownable::{Ownable, set_owner};
 use stellar_macros::only_owner;
 
@@ -51,6 +53,19 @@ enum DataKey {
     Verifier(BytesN<4>),
 }
 
+#[contractevent]
+pub struct VerifierAdded {
+    #[topic]
+    selector: BytesN<4>,
+    addr: Address,
+}
+
+#[contractevent]
+pub struct VerifierRemoved {
+    #[topic]
+    selector: BytesN<4>,
+}
+
 #[contract]
 /// Routes verification requests to selector-specific verifier contracts.
 pub struct RiscZeroVerifierRouter;
@@ -67,7 +82,7 @@ impl RiscZeroVerifierRouter {
     pub fn add_verifier(env: Env, verifier: Address) -> Result<(), VerifierError> {
         let selector = RiscZeroSelectorClient::new(&env, &verifier).selector();
 
-        let key = DataKey::Verifier(selector);
+        let key = DataKey::Verifier(selector.clone());
         let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(&env, &key);
 
         if let Some(entry) = verifier_address {
@@ -79,7 +94,13 @@ impl RiscZeroVerifierRouter {
 
         env.storage()
             .persistent()
-            .set(&key, &VerifierEntry::Active(verifier));
+            .set(&key, &VerifierEntry::Active(verifier.clone()));
+
+        VerifierAdded {
+            selector,
+            addr: verifier,
+        }
+        .publish(&env);
 
         Ok(())
     }
@@ -87,7 +108,7 @@ impl RiscZeroVerifierRouter {
     /// Removes a verifier for the selector, marking it as permanently removed.
     #[only_owner]
     pub fn remove_verifier(env: Env, selector: BytesN<4>) -> Result<(), VerifierError> {
-        let key = DataKey::Verifier(selector);
+        let key = DataKey::Verifier(selector.clone());
         match Self::read_verifier_entry(&env, &key) {
             Some(VerifierEntry::Tombstone) => return Err(VerifierError::SelectorRemoved),
             Some(VerifierEntry::Active(_)) => (),
@@ -96,6 +117,8 @@ impl RiscZeroVerifierRouter {
         env.storage()
             .persistent()
             .set(&key, &VerifierEntry::Tombstone);
+
+        VerifierRemoved { selector }.publish(&env);
 
         Ok(())
     }
@@ -171,7 +194,9 @@ fn selector_from_seal(seal: &Bytes) -> Result<BytesN<4>, VerifierError> {
     if seal.len() < 4 {
         return Err(VerifierError::MalformedSeal);
     }
-    Ok(seal.slice(0..4).try_into().unwrap())
+    seal.slice(0..4)
+        .try_into()
+        .map_err(|_| VerifierError::MalformedSeal)
 }
 
 #[contractimpl(contracttrait)]
