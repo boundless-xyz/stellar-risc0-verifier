@@ -43,17 +43,22 @@ impl ExampleContract {
         env.storage().instance().set(&IMAGE_ID, image_id);
     }
 
-    pub fn verify_proof(env: Env, seal: &Bytes, journal: &BytesN<32>) -> bool {
+    pub fn verify_proof(env: Env, seal: &Bytes, journal: &Bytes) -> bool {
         let router_address = env.storage().instance().get(&VERIFIER_ROUTER).unwrap();
         let image_id = env.storage().instance().get(&IMAGE_ID).unwrap();
-        // call to the router to verify the proof; will return an error if verification fails
+        let journal_digest = env.crypto().sha256(journal).to_bytes();
+
+        // call to the router to verify the proof; will return an error if verification
+        // fails
         let client = RiscZeroVerifierClient::new(&env, &router_address);
-        client.verify(seal, &image_id, journal);
+        client.verify(seal, &image_id, &journal_digest);
 
         true
     }
 }
 ```
+
+The seal should be encoded offchain before submitting in a transaction using the `encode_seal` function from the [`soroban-risc0`](./crates/soroban-risc0/) crate
 
 ## License
 
