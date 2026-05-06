@@ -22,6 +22,10 @@ use soroban_sdk::{Address, Bytes, BytesN, Env, contract, contractimpl, contractt
 use stellar_access::ownable::{Ownable, set_owner};
 use stellar_macros::only_owner;
 
+const DAY_IN_LEDGERS: u32 = 17_280;
+const VERIFIER_EXTEND_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
+const VERIFIER_TTL_THRESHOLD: u32 = VERIFIER_EXTEND_AMOUNT - DAY_IN_LEDGERS;
+
 /// Router mapping entry for a verifier selector.
 ///
 /// This enum represents the raw state stored in the router mapping:
@@ -64,7 +68,7 @@ impl RiscZeroVerifierRouter {
         let selector = RiscZeroSelectorClient::new(&env, &verifier).selector();
 
         let key = DataKey::Verifier(selector);
-        let verifier_address: Option<VerifierEntry> = env.storage().instance().get(&key);
+        let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(&env, &key);
 
         if let Some(entry) = verifier_address {
             match entry {
@@ -74,7 +78,7 @@ impl RiscZeroVerifierRouter {
         }
 
         env.storage()
-            .instance()
+            .persistent()
             .set(&key, &VerifierEntry::Active(verifier));
 
         Ok(())
@@ -84,14 +88,14 @@ impl RiscZeroVerifierRouter {
     #[only_owner]
     pub fn remove_verifier(env: Env, selector: BytesN<4>) -> Result<(), VerifierError> {
         let key = DataKey::Verifier(selector);
-        let verifier_address: Option<VerifierEntry> = env.storage().instance().get(&key);
+        let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(&env, &key);
 
         if verifier_address.is_none() {
             return Err(VerifierError::SelectorUnknown);
         }
 
         env.storage()
-            .instance()
+            .persistent()
             .set(&key, &VerifierEntry::Tombstone);
 
         Ok(())
@@ -101,7 +105,7 @@ impl RiscZeroVerifierRouter {
     /// tombstone).
     pub fn verifiers(env: Env, selector: BytesN<4>) -> Option<VerifierEntry> {
         let key = DataKey::Verifier(selector);
-        env.storage().instance().get(&key)
+        Self::read_verifier_entry(&env, &key)
     }
 
     /// Returns the verifier for a selector.
@@ -115,13 +119,25 @@ impl RiscZeroVerifierRouter {
     /// Returns the verifier for a selector.
     fn get_verifier(env: &Env, selector: &BytesN<4>) -> Result<Address, VerifierError> {
         let key = DataKey::Verifier(selector.clone());
-        let verifier_address: Option<VerifierEntry> = env.storage().instance().get(&key);
+        let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(env, &key);
 
         match verifier_address {
             Some(VerifierEntry::Tombstone) => Err(VerifierError::SelectorRemoved),
             Some(VerifierEntry::Active(address)) => Ok(address),
             None => Err(VerifierError::SelectorUnknown),
         }
+    }
+
+    /// Reads the verifier entry and refreshes its TTL using the router policy
+    /// when present.
+    fn read_verifier_entry(env: &Env, key: &DataKey) -> Option<VerifierEntry> {
+        env.storage().persistent().get(key).inspect(|_| {
+            env.storage().persistent().extend_ttl(
+                key,
+                VERIFIER_TTL_THRESHOLD,
+                VERIFIER_EXTEND_AMOUNT,
+            );
+        })
     }
 }
 
