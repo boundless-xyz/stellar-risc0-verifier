@@ -16,8 +16,8 @@ soroban-sdk = "25.1.0"
 hex = "0.4.3"
 hex-literal = "1.1.0"
 sha2 = "0.10.9"
-stellar-access = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
-stellar-macros = { git = "https://github.com/OpenZeppelin/stellar-contracts", rev = "63167bb" }
+stellar-access = "0.7.1"
+stellar-macros = "0.7.1"
 
 soroban-risc0-verifier-interface = { path = "contracts/interface" }
 
