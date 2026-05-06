@@ -88,12 +88,11 @@ impl RiscZeroVerifierRouter {
     #[only_owner]
     pub fn remove_verifier(env: Env, selector: BytesN<4>) -> Result<(), VerifierError> {
         let key = DataKey::Verifier(selector);
-        let verifier_address: Option<VerifierEntry> = Self::read_verifier_entry(&env, &key);
-
-        if verifier_address.is_none() {
-            return Err(VerifierError::SelectorUnknown);
+        match Self::read_verifier_entry(&env, &key) {
+            Some(VerifierEntry::Tombstone) => return Err(VerifierError::SelectorRemoved),
+            Some(VerifierEntry::Active(_)) => (),
+            None => return Err(VerifierError::SelectorUnknown),
         }
-
         env.storage()
             .persistent()
             .set(&key, &VerifierEntry::Tombstone);
