@@ -11,5 +11,9 @@ doctest = false
 [dependencies]
 soroban-sdk = { workspace = true }
 
+[build-dependencies]
+risc0-binfmt = { workspace = true }
+risc0-zkp = { workspace = true }
+
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
