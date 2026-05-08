@@ -50,9 +50,9 @@ jobs:
           # `groth16-verifier` measures the bare verifier; `emergency-stop`
           # measures a receipt routed through `RiscZeroVerifierEmergencyStop`
           # (which wraps the production groth16 verifier in its own benches).
-          OUTPUT=$(cargo test --release --manifest-path contracts/groth16-verifier/Cargo.toml bench_ -- --nocapture 2>&1)
+          OUTPUT=$(cargo test --release --manifest-path contracts/groth16-verifier/Cargo.toml bench_ -- --nocapture --test-threads=1 2>&1)
           OUTPUT="$OUTPUT
-          $(cargo test --release --manifest-path contracts/emergency-stop/Cargo.toml bench_ -- --nocapture 2>&1)"
+          $(cargo test --release --manifest-path contracts/emergency-stop/Cargo.toml bench_ -- --nocapture --test-threads=1 2>&1)"
           echo "$OUTPUT"
 
           # Parse benchmark results from `Budget::print()` output.

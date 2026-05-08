@@ -15,7 +15,7 @@
 extern crate std;
 
 use super::*;
-use soroban_risc0_groth16_verifier::{RiscZeroGroth16Verifier, test_fixtures};
+use soroban_risc0_groth16_verifier::{RiscZeroGroth16Verifier, test as groth16_test};
 use soroban_risc0_mock_verifier::{RiscZeroMockVerifier, RiscZeroMockVerifierClient};
 use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{Address, Bytes, BytesN, Env, testutils::Address as _};
@@ -256,7 +256,7 @@ fn bench_setup() -> BenchSetup {
     let wrapper = env.register(RiscZeroVerifierEmergencyStop, (inner, guardian));
     let client = RiscZeroVerifierEmergencyStopClient::new(&env, &wrapper);
 
-    let (seal, image_id, journal_digest) = test_fixtures::prepare_inputs(&env);
+    let (seal, image_id, journal_digest) = groth16_test::prepare_inputs(&env);
 
     BenchSetup {
         env,
