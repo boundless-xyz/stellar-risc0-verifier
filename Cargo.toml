@@ -20,6 +20,7 @@ stellar-access = "0.7.1"
 stellar-contract-utils = "0.7.1"
 stellar-macros = "0.7.1"
 
+soroban-risc0-mock-verifier = { path = "contracts/mock-verifier" }
 soroban-risc0-verifier-interface = { path = "contracts/interface" }
 
 ark-bn254 = { version = "0.5", default-features = false }
