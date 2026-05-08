@@ -9,6 +9,11 @@ publish = false
 crate-type = ["lib", "cdylib"]
 doctest = false
 
+[features]
+# Expose the `test` module (fixtures + helpers) to other crates' dev
+# dependencies. Off by default so the data is excluded from production builds.
+test-fixtures = []
+
 [dependencies]
 soroban-risc0-verifier-interface = { workspace = true }
 soroban-sdk = { workspace = true }

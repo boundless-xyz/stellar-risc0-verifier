@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Test data and unit tests for the groth16 verifier.
+//! Test data + unit tests for the groth16 verifier.
 //!
 //! The fixtures ([`TEST_SEAL`], [`TEST_IMAGE_ID`], [`TEST_JOURNAL`],
 //! [`prepare_inputs`]) are public so downstream crates that wrap
-//! [`crate::RiscZeroGroth16Verifier`] (e.g. `soroban-risc0-emergency-stop`)
-//! can benchmark against the same proof. The unit tests themselves live in
-//! a `#[cfg(test)]` sub-module so the std-using bits never reach a wasm build.
+//! [`super::RiscZeroGroth16Verifier`] (e.g. `soroban-risc0-emergency-stop`)
+//! can benchmark against the same proof. The `#[test]` items and their
+//! helpers are `#[cfg(test)]`-gated so they only compile when this crate
+//! itself is being tested.
 
 use soroban_sdk::{Bytes, BytesN, Env};
 
@@ -49,7 +50,7 @@ pub const TEST_IMAGE_ID: [u8; 32] = [
 pub const TEST_JOURNAL: [u8; 4] = [0x01, 0x00, 0x00, 0x78];
 
 /// Build the (seal, image_id, journal_digest) tuple expected by
-/// [`crate::RiscZeroGroth16Verifier::verify`].
+/// [`super::RiscZeroGroth16Verifier::verify`].
 pub fn prepare_inputs(env: &Env) -> (Bytes, BytesN<32>, BytesN<32>) {
     let seal = Bytes::from_slice(env, &TEST_SEAL);
     let image_id = BytesN::from_array(env, &TEST_IMAGE_ID);
@@ -61,85 +62,82 @@ pub fn prepare_inputs(env: &Env) -> (Bytes, BytesN<32>, BytesN<32>) {
 }
 
 #[cfg(test)]
-mod tests {
-    extern crate std;
+extern crate std;
 
-    use super::prepare_inputs;
-    use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
-    use soroban_sdk::Env;
-    use std::println;
+#[cfg(test)]
+use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
+#[cfg(test)]
+use std::println;
 
-    fn setup_test() -> (Env, RiscZeroGroth16VerifierClient<'static>) {
-        let env = Env::default();
-        let contract_id = env.register(RiscZeroGroth16Verifier, ());
-        let client = RiscZeroGroth16VerifierClient::new(&env, &contract_id);
-        (env, client)
-    }
+#[cfg(test)]
+fn setup_test() -> (Env, RiscZeroGroth16VerifierClient<'static>) {
+    let env = Env::default();
+    let contract_id = env.register(RiscZeroGroth16Verifier, ());
+    let client = RiscZeroGroth16VerifierClient::new(&env, &contract_id);
+    (env, client)
+}
 
-    #[test]
-    fn test_verify_proof() {
-        let (env, client) = setup_test();
-        let (seal, image_id, journal_digest) = prepare_inputs(&env);
+#[test]
+fn test_verify_proof() {
+    let (env, client) = setup_test();
+    let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
-        assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
-    }
+    assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
+}
 
-    // ============================================================================
-    // BENCHMARKS - Gas Consumption Tracking
-    // ============================================================================
+// ============================================================================
+// BENCHMARKS - Gas Consumption Tracking
+// ============================================================================
 
-    /// Prints full budget in a formatted way
-    fn print_budget(env: &Env, label: &str) {
-        let budget = env.cost_estimate().budget();
+#[cfg(test)]
+fn print_budget(env: &Env, label: &str) {
+    let budget = env.cost_estimate().budget();
 
-        println!("\n========== BENCHMARK: {} ==========", label);
-        budget.print();
-        println!("==========================================\n");
-    }
+    println!("\n========== BENCHMARK: {} ==========", label);
+    budget.print();
+    println!("==========================================\n");
+}
 
-    #[test]
-    fn bench_verify() {
-        let (env, client) = setup_test();
-        let (seal, image_id, journal_digest) = prepare_inputs(&env);
+#[test]
+fn bench_verify() {
+    let (env, client) = setup_test();
+    let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
-        // Run verification
-        assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
+    // Run verification
+    assert_eq!(client.verify(&seal, &image_id, &journal_digest), ());
 
-        // Print results
-        print_budget(&env, "verify()");
-    }
+    // Print results
+    print_budget(&env, "verify()");
+}
 
-    #[test]
-    fn bench_verify_integrity() {
-        let (env, client) = setup_test();
-        let (seal, image_id, journal_digest) = prepare_inputs(&env);
+#[test]
+fn bench_verify_integrity() {
+    let (env, client) = setup_test();
+    let (seal, image_id, journal_digest) = prepare_inputs(&env);
 
-        // Build receipt manually
-        let claim =
-            soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
-        let receipt = soroban_risc0_verifier_interface::Receipt {
-            seal,
-            claim_digest: claim.digest(&env),
-        };
+    // Build receipt manually
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let receipt = soroban_risc0_verifier_interface::Receipt {
+        seal,
+        claim_digest: claim.digest(&env),
+    };
 
-        // Run verification
-        assert_eq!(client.verify_integrity(&receipt), ());
+    // Run verification
+    assert_eq!(client.verify_integrity(&receipt), ());
 
-        // Print results
-        print_budget(&env, "verify_integrity()");
-    }
+    // Print results
+    print_budget(&env, "verify_integrity()");
+}
 
-    #[test]
-    fn bench_receipt_claim_digest() {
-        let (env, _client) = setup_test();
-        let (_seal, image_id, journal_digest) = prepare_inputs(&env);
+#[test]
+fn bench_receipt_claim_digest() {
+    let (env, _client) = setup_test();
+    let (_seal, image_id, journal_digest) = prepare_inputs(&env);
 
-        // Build claim and compute digest
-        let claim =
-            soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
-        let _digest = claim.digest(&env);
+    // Build claim and compute digest
+    let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
+    let _digest = claim.digest(&env);
 
-        // Print results
-        print_budget(&env, "ReceiptClaim::digest()");
-    }
+    // Print results
+    print_budget(&env, "ReceiptClaim::digest()");
 }
