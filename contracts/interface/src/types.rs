@@ -112,33 +112,33 @@ pub struct ReceiptClaim {
     ///
     /// This identifies which guest program was executed. It must match the
     /// expected program for verification to be meaningful.
-    pre_state_digest: BytesN<32>,
+    pub pre_state_digest: BytesN<32>,
 
     /// Digest of the system state after execution has completed.
     ///
     /// This is a fixed constant value
     /// (`0xa3acc27117418996340b84e5a90f3ef4c49d22c79e44aad822ec9c313e1eb8e2`)
     /// representing the halted state.
-    post_state_digest: BytesN<32>,
+    pub post_state_digest: BytesN<32>,
 
     /// The exit code indicating how the execution terminated.
     ///
     /// Contains both a system-level code (Halted, Paused, SystemSplit) and a
     /// user-defined exit code from the guest program.
-    exit_code: ExitCode,
+    pub exit_code: ExitCode,
 
     /// Digest of the input committed to the guest program.
     ///
     /// **Note**: This field is currently unused in the RISC Zero zkVM and must
     /// always be set to the zero digest (32 zero bytes).
-    input: BytesN<32>,
+    pub input: BytesN<32>,
 
     /// Digest of the execution output.
     ///
     /// This is the SHA-256 hash of an [`Output`] struct containing the journal
     /// digest and assumptions digest. See [`Output::digest()`] for the hashing
     /// scheme.
-    output: BytesN<32>,
+    pub output: BytesN<32>,
 }
 
 /// Exit code indicating how a guest program execution terminated.
@@ -152,9 +152,9 @@ pub struct ReceiptClaim {
 #[contracttype]
 pub struct ExitCode {
     /// System-level exit code indicating the execution termination mode.
-    system: SystemExitCode,
+    pub system: SystemExitCode,
     /// User-defined exit code (8 bytes) set by the guest program.
-    user: BytesN<8>,
+    pub user: BytesN<8>,
 }
 
 /// System-level exit codes for RISC Zero execution.
@@ -199,11 +199,11 @@ pub enum SystemExitCode {
 pub struct Output {
     /// SHA-256 digest of the journal bytes (public outputs from the guest
     /// program).
-    journal_digest: BytesN<32>,
+    pub journal_digest: BytesN<32>,
     /// SHA-256 digest of assumptions (dependencies on other receipts).
     ///
     /// For unconditional receipts (the common case), this is the zero digest.
-    assumptions_digest: BytesN<32>,
+    pub assumptions_digest: BytesN<32>,
 }
 
 impl Output {
