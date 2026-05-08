@@ -152,11 +152,12 @@ fn estop_non_owner_panics() {
 #[test]
 fn estop_with_proof_branches() {
     // Covers all three branches of estop_with_proof in one flow:
-    //   1. Err InvalidProofOfExploit (non-zero claim_digest, wrapper stays unpaused).
+    //   1. Err InvalidProofOfExploit (non-zero claim_digest, wrapper stays
+    //      unpaused).
     //   2. Inner-rejection panic with disjoint error code (wrong selector →
-    //      VerifierError::InvalidSelector must surface as InvokeError, NOT as
-    //      a misdecoded EmergencyStopError variant — regression for the 1-99 vs
-    //      100+ error-code split).
+    //      VerifierError::InvalidSelector must surface as InvokeError, NOT as a
+    //      misdecoded EmergencyStopError variant — regression for the 1-99 vs 100+
+    //      error-code split).
     //   3. Ok branch (valid zero-digest receipt pauses the wrapper).
     let s = setup();
 
