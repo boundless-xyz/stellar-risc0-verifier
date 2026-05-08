@@ -27,6 +27,9 @@ mod constants;
 mod types;
 mod utils;
 
+#[cfg(any(test, feature = "test-fixtures"))]
+pub mod test_fixtures;
+
 /// Groth16 verifier contract for RISC Zero receipts of execution.
 ///
 /// This contract implements the [`RiscZeroVerifierInterface`] using Groth16

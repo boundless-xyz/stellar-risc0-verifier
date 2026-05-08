@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate std;
+
 use super::*;
+use soroban_risc0_groth16_verifier::{RiscZeroGroth16Verifier, test_fixtures};
 use soroban_risc0_mock_verifier::{RiscZeroMockVerifier, RiscZeroMockVerifierClient};
-use soroban_risc0_verifier_interface::Receipt;
+use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
 use soroban_sdk::{Address, Bytes, BytesN, Env, testutils::Address as _};
+use std::println;
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -224,4 +228,66 @@ fn ownership_can_transfer_two_step() {
 
     s.client.estop();
     assert!(s.client.paused());
+}
+
+// -----------------------------------------------------------------------------
+// Benchmarks — gas consumption tracking
+// -----------------------------------------------------------------------------
+//
+// Wraps the production groth16 verifier so the reported numbers reflect the
+// real cost of routing a receipt through `RiscZeroVerifierEmergencyStop` in
+// production. Subtract the bare `bench_verify` / `bench_verify_integrity`
+// numbers from `groth16-verifier` to estimate the wrapper's overhead.
+
+struct BenchSetup {
+    env: Env,
+    client: RiscZeroVerifierEmergencyStopClient<'static>,
+    seal: Bytes,
+    image_id: BytesN<32>,
+    journal_digest: BytesN<32>,
+}
+
+fn bench_setup() -> BenchSetup {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let guardian = Address::generate(&env);
+    let inner = env.register(RiscZeroGroth16Verifier, ());
+    let wrapper = env.register(RiscZeroVerifierEmergencyStop, (inner, guardian));
+    let client = RiscZeroVerifierEmergencyStopClient::new(&env, &wrapper);
+
+    let (seal, image_id, journal_digest) = test_fixtures::prepare_inputs(&env);
+
+    BenchSetup {
+        env,
+        client,
+        seal,
+        image_id,
+        journal_digest,
+    }
+}
+
+fn print_budget(env: &Env, label: &str) {
+    println!("\n========== BENCHMARK: {} ==========", label);
+    env.cost_estimate().budget().print();
+    println!("==========================================\n");
+}
+
+#[test]
+fn bench_emergency_stop_verify() {
+    let s = bench_setup();
+    s.client.verify(&s.seal, &s.image_id, &s.journal_digest);
+    print_budget(&s.env, "estop_verify");
+}
+
+#[test]
+fn bench_emergency_stop_verify_integrity() {
+    let s = bench_setup();
+    let claim = ReceiptClaim::new(&s.env, s.image_id, s.journal_digest);
+    let receipt = Receipt {
+        seal: s.seal,
+        claim_digest: claim.digest(&s.env),
+    };
+    s.client.verify_integrity(&receipt);
+    print_budget(&s.env, "estop_integrity");
 }
