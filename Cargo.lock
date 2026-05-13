@@ -2198,6 +2198,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "soroban-risc0-emergency-stop"
+version = "0.1.0"
+dependencies = [
+ "soroban-risc0-groth16-verifier",
+ "soroban-risc0-mock-verifier",
+ "soroban-risc0-verifier-interface",
+ "soroban-sdk",
+ "stellar-access",
+ "stellar-contract-utils",
+ "stellar-macros",
+]
+
+[[package]]
 name = "soroban-risc0-example"
 version = "0.1.0"
 dependencies = [
@@ -2234,6 +2247,7 @@ dependencies = [
 name = "soroban-risc0-router"
 version = "0.1.0"
 dependencies = [
+ "soroban-risc0-mock-verifier",
  "soroban-risc0-verifier-interface",
  "soroban-sdk",
  "stellar-access",
@@ -2378,6 +2392,15 @@ name = "stellar-access"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ec08d321dff797b611228fea28527311f2f03721cb264433490f711d5afd1d6"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellar-contract-utils"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acd8001a84e189032af6d8d17355a923d98ea97917064d6e6003ff3e5accb0f5"
 dependencies = [
  "soroban-sdk",
 ]

@@ -132,5 +132,5 @@ impl RiscZeroSelectorInterface for RiscZeroGroth16Verifier {
     }
 }
 
-#[cfg(test)]
-mod test;
+#[cfg(any(test, feature = "test-fixtures"))]
+pub mod test;

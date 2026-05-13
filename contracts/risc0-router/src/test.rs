@@ -1,96 +1,9 @@
 use super::*;
-use soroban_risc0_verifier_interface::{Receipt, ReceiptClaim};
+use soroban_risc0_mock_verifier::{RiscZeroMockVerifier, RiscZeroMockVerifierClient};
+use soroban_risc0_verifier_interface::Receipt;
 use soroban_sdk::{
-    Address, Bytes, BytesN, Env, IntoVal, Symbol, contract, contractimpl, symbol_short,
-    testutils::Address as _,
+    Address, Bytes, BytesN, Env, IntoVal, Symbol, symbol_short, testutils::Address as _,
 };
-
-// =============================================================================
-// Mock Verifier Contract
-// =============================================================================
-// A simple mock verifier that implements the RiscZeroVerifierInterface for
-// testing. It stores verification calls so we can assert they were routed
-// correctly.
-
-mod mock_verifier {
-    use super::*;
-    use soroban_risc0_verifier_interface::{
-        Receipt, RiscZeroSelectorInterface, RiscZeroVerifierInterface,
-    };
-
-    #[contract]
-    pub struct MockVerifier;
-
-    #[contracttype]
-    enum DataKey {
-        Selector,
-    }
-
-    #[contractimpl]
-    impl MockVerifier {
-        pub fn __constructor(env: Env, selector: &BytesN<4>) {
-            let selector: Bytes = selector.into();
-            env.storage()
-                .persistent()
-                .set(&DataKey::Selector, &selector);
-        }
-
-        /// Returns true if this mock was called (for testing routing)
-        pub fn was_called(env: Env) -> bool {
-            env.storage().temporary().has(&"called")
-        }
-
-        /// Configures whether verification should fail with InvalidProof.
-        pub fn set_should_fail(env: Env, should_fail: bool) {
-            env.storage().temporary().set(&"should_fail", &should_fail);
-        }
-
-        /// Get the receipt that was verified
-        pub fn get_verified_receipt(env: Env) -> Option<Receipt> {
-            env.storage().temporary().get(&"receipt")
-        }
-    }
-
-    #[contractimpl]
-    impl RiscZeroVerifierInterface for MockVerifier {
-        fn verify(
-            env: Env,
-            seal: Bytes,
-            image_id: BytesN<32>,
-            journal: BytesN<32>,
-        ) -> Result<(), VerifierError> {
-            let claim = ReceiptClaim::new(&env, image_id, journal);
-            let receipt = Receipt {
-                seal,
-                claim_digest: claim.digest(&env),
-            };
-            Self::verify_integrity(env, receipt)
-        }
-
-        fn verify_integrity(env: Env, receipt: Receipt) -> Result<(), VerifierError> {
-            env.storage().temporary().set(&"called", &true);
-            env.storage().temporary().set(&"receipt", &receipt);
-
-            let should_fail = env
-                .storage()
-                .temporary()
-                .get(&"should_fail")
-                .unwrap_or(false);
-            if should_fail {
-                return Err(VerifierError::InvalidProof);
-            }
-            Ok(())
-        }
-    }
-
-    #[contractimpl]
-    impl RiscZeroSelectorInterface for MockVerifier {
-        fn selector(env: Env) -> BytesN<4> {
-            let selector = env.storage().persistent().get(&DataKey::Selector).unwrap();
-            BytesN::try_from(&selector).unwrap()
-        }
-    }
-}
 
 // =============================================================================
 // Helper Functions
@@ -124,7 +37,7 @@ fn create_short_seal(env: &Env) -> Bytes {
 
 fn setup_verifier(env: &Env) -> (BytesN<4>, Address) {
     let selector = create_selector(env, [0x01, 0x02, 0x03, 0x04]);
-    let verifier_id = env.register(mock_verifier::MockVerifier, (selector.clone(),));
+    let verifier_id = env.register(RiscZeroMockVerifier, (selector.clone(),));
     (selector, verifier_id)
 }
 
@@ -135,8 +48,8 @@ fn setup_two_verifiers(
     let selector_a = create_selector(env, [0x01, 0x02, 0x03, 0x04]);
     let selector_b = create_selector(env, [0x10, 0x20, 0x30, 0x40]);
 
-    let verifier_a = env.register(mock_verifier::MockVerifier, (selector_a.clone(),));
-    let verifier_b = env.register(mock_verifier::MockVerifier, (selector_b.clone(),));
+    let verifier_a = env.register(RiscZeroMockVerifier, (selector_a.clone(),));
+    let verifier_b = env.register(RiscZeroMockVerifier, (selector_b.clone(),));
 
     client.add_verifier(&verifier_a);
     client.add_verifier(&verifier_b);
@@ -294,45 +207,47 @@ fn test_remove_verifier_unknown_selector() {
 fn test_removed_selector_blocks_verify() {
     let (env, _admin, client) = setup_env();
 
-    let (selector_a, selector_b, verifier_a, verifier_b) = setup_two_verifiers(&env, &client);
-    let mock_a = mock_verifier::MockVerifierClient::new(&env, &verifier_a);
-    let mock_b = mock_verifier::MockVerifierClient::new(&env, &verifier_b);
+    let (_selector_a, selector_b, verifier_a, _verifier_b) = setup_two_verifiers(&env, &client);
+    let mock_a = RiscZeroMockVerifierClient::new(&env, &verifier_a);
     client.remove_verifier(&selector_b);
 
-    let seal_a = create_seal_with_selector(&env, &selector_a);
-    let seal_b = create_seal_with_selector(&env, &selector_b);
     let image_id = BytesN::from_array(&env, &[0u8; 32]);
     let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
 
-    client.verify(&seal_a, &image_id, &journal_digest);
-    assert!(mock_a.was_called());
-    assert!(!mock_b.was_called());
+    // Selector A still routes — success implies the router dispatched to A and
+    // the mock accepted the receipt (a wrong-selector dispatch would have
+    // returned `InvalidSelector`).
+    let receipt_a = mock_a.mock_prove(&image_id, &journal_digest);
+    client.verify(&receipt_a.seal, &image_id, &journal_digest);
 
+    // Selector B is tombstoned — the router rejects before any inner
+    // dispatch, so the seal body doesn't have to be a valid mock receipt.
+    let seal_b = create_seal_with_selector(&env, &selector_b);
     let result = client.try_verify(&seal_b, &image_id, &journal_digest);
     assert_eq!(
         unwrap_verifier_error(result),
         VerifierError::SelectorRemoved
     );
-    assert!(!mock_b.was_called());
 }
 
 #[test]
 fn test_removed_selector_blocks_verify_integrity() {
     let (env, _admin, client) = setup_env();
 
-    let (selector_a, selector_b, verifier_a, verifier_b) = setup_two_verifiers(&env, &client);
-    let mock_a = mock_verifier::MockVerifierClient::new(&env, &verifier_a);
-    let mock_b = mock_verifier::MockVerifierClient::new(&env, &verifier_b);
+    let (selector_a, selector_b, _verifier_a, _verifier_b) = setup_two_verifiers(&env, &client);
     client.remove_verifier(&selector_b);
 
+    // `selector || [0u8; 32]` paired with claim_digest = [0u8; 32] satisfies
+    // the mock's `keccak(seal[4..]) == keccak(claim_digest)` check, so the
+    // router-A path completes end-to-end.
     let receipt_a = Receipt {
         seal: create_seal_with_selector(&env, &selector_a),
         claim_digest: BytesN::from_array(&env, &[0u8; 32]),
     };
     client.verify_integrity(&receipt_a);
-    assert!(mock_a.was_called());
-    assert!(!mock_b.was_called());
 
+    // Selector B is tombstoned — router rejection short-circuits before any
+    // inner dispatch.
     let receipt_b = Receipt {
         seal: create_seal_with_selector(&env, &selector_b),
         claim_digest: BytesN::from_array(&env, &[0u8; 32]),
@@ -342,7 +257,6 @@ fn test_removed_selector_blocks_verify_integrity() {
         unwrap_verifier_error(result),
         VerifierError::SelectorRemoved
     );
-    assert!(!mock_b.was_called());
 }
 
 // =============================================================================
@@ -353,51 +267,41 @@ fn test_removed_selector_blocks_verify_integrity() {
 fn test_verify_routes_to_correct_verifier() {
     let (env, _admin, client) = setup_env();
 
-    // Register a mock verifier
-    let (selector, mock_verifier_id) = setup_verifier(&env);
-    let mock_client = mock_verifier::MockVerifierClient::new(&env, &mock_verifier_id);
-
+    let (_selector, mock_verifier_id) = setup_verifier(&env);
+    let mock_client = RiscZeroMockVerifierClient::new(&env, &mock_verifier_id);
     client.add_verifier(&mock_verifier_id);
 
-    // Create a seal with the correct selector
-    let seal = create_seal_with_selector(&env, &selector);
     let image_id = BytesN::from_array(&env, &[0u8; 32]);
     let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
+    let receipt = mock_client.mock_prove(&image_id, &journal_digest);
 
-    // Verify through the router by invoking the contract function directly
+    // Successful return implies the router dispatched to the mock and the mock
+    // accepted the receipt — a misroute would have returned `InvalidSelector`.
     let _: () = env.invoke_contract(
         &client.address,
         &symbol_short!("verify"),
-        (seal, image_id, journal_digest).into_val(&env),
+        (receipt.seal, image_id, journal_digest).into_val(&env),
     );
-
-    // Check that the mock verifier was called
-    assert!(mock_client.was_called());
 }
 
 #[test]
 fn test_verify_routes_to_multiple_verifiers() {
     let (env, _admin, client) = setup_env();
 
-    let (selector_a, selector_b, verifier_a, verifier_b) = setup_two_verifiers(&env, &client);
-    let mock_a = mock_verifier::MockVerifierClient::new(&env, &verifier_a);
-    let mock_b = mock_verifier::MockVerifierClient::new(&env, &verifier_b);
+    let (_selector_a, _selector_b, verifier_a, verifier_b) = setup_two_verifiers(&env, &client);
+    let mock_a = RiscZeroMockVerifierClient::new(&env, &verifier_a);
+    let mock_b = RiscZeroMockVerifierClient::new(&env, &verifier_b);
 
     let image_id = BytesN::from_array(&env, &[0u8; 32]);
     let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
 
-    let seal_a = create_seal_with_selector(&env, &selector_a);
-    client.verify(&seal_a, &image_id, &journal_digest);
+    // Each mock only accepts seals prefixed with its own selector, so
+    // successful verification implies the router routed to the right one.
+    let receipt_a = mock_a.mock_prove(&image_id, &journal_digest);
+    client.verify(&receipt_a.seal, &image_id, &journal_digest);
 
-    assert!(mock_a.was_called());
-    assert!(!mock_b.was_called());
-    assert_eq!(mock_a.get_verified_receipt().unwrap().seal, seal_a);
-
-    let seal_b = create_seal_with_selector(&env, &selector_b);
-    client.verify(&seal_b, &image_id, &journal_digest);
-
-    assert!(mock_b.was_called());
-    assert_eq!(mock_b.get_verified_receipt().unwrap().seal, seal_b);
+    let receipt_b = mock_b.mock_prove(&image_id, &journal_digest);
+    client.verify(&receipt_b.seal, &image_id, &journal_digest);
 }
 
 #[test]
@@ -405,21 +309,18 @@ fn test_verify_returns_verifier_error_on_failure() {
     let (env, _admin, client) = setup_env();
 
     let (selector, verifier_id) = setup_verifier(&env);
-    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
-
     client.add_verifier(&verifier_id);
 
-    mock_client.set_should_fail(&true);
-
+    // `selector || [0u8; 32]` paired with a non-zero claim_digest derived from
+    // (image_id, journal) trips the mock's `keccak(seal[4..]) ==
+    // keccak(claim_digest)` check, surfacing as `InvalidProof` through the
+    // router.
     let seal = create_seal_with_selector(&env, &selector);
     let image_id = BytesN::from_array(&env, &[0u8; 32]);
     let journal_digest = BytesN::from_array(&env, &[1u8; 32]);
 
     let result = client.try_verify(&seal, &image_id, &journal_digest);
     assert_eq!(unwrap_verifier_error(result), VerifierError::InvalidProof);
-    // Failed sub-invocations roll back temporary storage writes in the verifier.
-    assert!(!mock_client.was_called());
-    assert!(mock_client.get_verified_receipt().is_none());
 }
 
 #[test]
@@ -427,40 +328,32 @@ fn test_verify_integrity_routes_to_correct_verifier() {
     let (env, _admin, client) = setup_env();
 
     let (selector, verifier_id) = setup_verifier(&env);
-    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
-
     client.add_verifier(&verifier_id);
 
-    // Create a receipt with the correct selector in the seal
-    let seal = create_seal_with_selector(&env, &selector);
-    let claim_digest = BytesN::from_array(&env, &[0u8; 32]);
+    // `selector || [0u8; 32]` paired with claim_digest = [0u8; 32] satisfies
+    // the mock's keccak check, so a successful return implies the router
+    // dispatched to the mock for this selector.
     let receipt = Receipt {
-        seal,
-        claim_digest: claim_digest.clone(),
+        seal: create_seal_with_selector(&env, &selector),
+        claim_digest: BytesN::from_array(&env, &[0u8; 32]),
     };
 
-    // Verify integrity through the router by invoking the contract function
-    // directly
     let _: () = env.invoke_contract(
         &client.address,
         &Symbol::new(&env, "verify_integrity"),
         (receipt,).into_val(&env),
     );
-
-    // Check that the mock verifier was called with the correct receipt
-    assert!(mock_client.was_called());
-    let verified_receipt = mock_client.get_verified_receipt().unwrap();
-    assert_eq!(verified_receipt.claim_digest, claim_digest);
 }
 
 #[test]
 fn test_verify_integrity_routes_to_multiple_verifiers() {
     let (env, _admin, client) = setup_env();
 
-    let (selector_a, selector_b, verifier_a, verifier_b) = setup_two_verifiers(&env, &client);
-    let mock_a = mock_verifier::MockVerifierClient::new(&env, &verifier_a);
-    let mock_b = mock_verifier::MockVerifierClient::new(&env, &verifier_b);
+    let (selector_a, selector_b, _verifier_a, _verifier_b) = setup_two_verifiers(&env, &client);
 
+    // claim_digest = [0u8; 32] paired with `selector || [0u8; 32]` matches the
+    // mock's keccak check; routing to the wrong mock would surface as
+    // `InvalidSelector`.
     let claim_digest = BytesN::from_array(&env, &[0u8; 32]);
 
     let receipt_a = Receipt {
@@ -469,18 +362,11 @@ fn test_verify_integrity_routes_to_multiple_verifiers() {
     };
     client.verify_integrity(&receipt_a);
 
-    assert!(mock_a.was_called());
-    assert!(!mock_b.was_called());
-    assert_eq!(mock_a.get_verified_receipt().unwrap().seal, receipt_a.seal);
-
     let receipt_b = Receipt {
         seal: create_seal_with_selector(&env, &selector_b),
         claim_digest,
     };
     client.verify_integrity(&receipt_b);
-
-    assert!(mock_b.was_called());
-    assert_eq!(mock_b.get_verified_receipt().unwrap().seal, receipt_b.seal);
 }
 
 #[test]
@@ -488,23 +374,17 @@ fn test_verify_integrity_returns_verifier_error_on_failure() {
     let (env, _admin, client) = setup_env();
 
     let (selector, verifier_id) = setup_verifier(&env);
-    let mock_client = mock_verifier::MockVerifierClient::new(&env, &verifier_id);
-
     client.add_verifier(&verifier_id);
 
-    mock_client.set_should_fail(&true);
-
-    let claim_digest = BytesN::from_array(&env, &[0u8; 32]);
+    // seal[4..] = [0u8; 32] but claim_digest = [1u8; 32] — keccak hashes
+    // differ, so the mock returns `InvalidProof` and the router surfaces it.
     let receipt = Receipt {
         seal: create_seal_with_selector(&env, &selector),
-        claim_digest: claim_digest.clone(),
+        claim_digest: BytesN::from_array(&env, &[1u8; 32]),
     };
 
     let result = client.try_verify_integrity(&receipt);
     assert_eq!(unwrap_verifier_error(result), VerifierError::InvalidProof);
-    // Failed sub-invocations roll back temporary storage writes in the verifier.
-    assert!(!mock_client.was_called());
-    assert!(mock_client.get_verified_receipt().is_none());
 }
 
 #[test]

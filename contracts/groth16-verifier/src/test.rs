@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate std;
+//! Test data + unit tests for the groth16 verifier.
+//!
+//! The fixtures ([`TEST_SEAL`], [`TEST_IMAGE_ID`], [`TEST_JOURNAL`],
+//! [`prepare_inputs`]) are public so downstream crates that wrap
+//! [`super::RiscZeroGroth16Verifier`] (e.g. `soroban-risc0-emergency-stop`)
+//! can benchmark against the same proof. The `#[test]` items and their
+//! helpers are `#[cfg(test)]`-gated so they only compile when this crate
+//! itself is being tested.
 
 use soroban_sdk::{Bytes, BytesN, Env};
-use std::println;
 
-use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
-
-/// Test seal data for benchmarks
-const TEST_SEAL: [u8; 260] = [
+/// Real groth16 seal for [`TEST_IMAGE_ID`] + [`TEST_JOURNAL`].
+pub const TEST_SEAL: [u8; 260] = [
     115, 196, 87, 186, 0, 237, 128, 235, 234, 82, 162, 215, 108, 219, 83, 253, 51, 151, 104, 190,
     16, 27, 191, 115, 52, 20, 229, 22, 168, 155, 98, 214, 70, 109, 143, 168, 39, 163, 217, 215,
     117, 155, 119, 189, 172, 46, 218, 8, 164, 36, 138, 163, 47, 66, 185, 51, 132, 186, 120, 68,
@@ -36,29 +40,41 @@ const TEST_SEAL: [u8; 260] = [
     56, 22, 57, 168, 230, 57, 33, 30, 155, 70, 128, 49, 27,
 ];
 
-/// Test image ID (hex decoded)
-const TEST_IMAGE_ID: [u8; 32] = [
+/// Image ID the test seal commits to.
+pub const TEST_IMAGE_ID: [u8; 32] = [
     0xa7, 0x7e, 0x54, 0x91, 0x0c, 0x79, 0x2d, 0xdc, 0x3f, 0x14, 0x87, 0x8f, 0x3f, 0x13, 0x60, 0xaf,
     0x96, 0x61, 0x24, 0x08, 0xd6, 0x90, 0x74, 0xe8, 0x73, 0x89, 0xa2, 0x15, 0xf5, 0x75, 0x95, 0xb9,
 ];
 
-/// Test journal data
-const TEST_JOURNAL: [u8; 4] = [0x01, 0x00, 0x00, 0x78];
+/// Raw journal bytes; pair with [`prepare_inputs`] to get the digest.
+pub const TEST_JOURNAL: [u8; 4] = [0x01, 0x00, 0x00, 0x78];
 
-/// Helper to setup test environment and client
+/// Build the (seal, image_id, journal_digest) tuple expected by
+/// [`super::RiscZeroGroth16Verifier::verify`].
+pub fn prepare_inputs(env: &Env) -> (Bytes, BytesN<32>, BytesN<32>) {
+    let seal = Bytes::from_slice(env, &TEST_SEAL);
+    let image_id = BytesN::from_array(env, &TEST_IMAGE_ID);
+    let journal_digest = env
+        .crypto()
+        .sha256(&Bytes::from_slice(env, &TEST_JOURNAL))
+        .into();
+    (seal, image_id, journal_digest)
+}
+
+#[cfg(test)]
+extern crate std;
+
+#[cfg(test)]
+use crate::{RiscZeroGroth16Verifier, RiscZeroGroth16VerifierClient};
+#[cfg(test)]
+use std::println;
+
+#[cfg(test)]
 fn setup_test() -> (Env, RiscZeroGroth16VerifierClient<'static>) {
     let env = Env::default();
     let contract_id = env.register(RiscZeroGroth16Verifier, ());
     let client = RiscZeroGroth16VerifierClient::new(&env, &contract_id);
     (env, client)
-}
-
-/// Helper to prepare test inputs
-fn prepare_inputs(env: &Env) -> (Bytes, BytesN<32>, BytesN<32>) {
-    let seal = Bytes::from_slice(env, &TEST_SEAL);
-    let image_id = BytesN::from_array(env, &TEST_IMAGE_ID);
-    let journal_digest = env.crypto().sha256(&Bytes::from_slice(env, &TEST_JOURNAL));
-    (seal, image_id, journal_digest.into())
 }
 
 #[test]
@@ -73,7 +89,7 @@ fn test_verify_proof() {
 // BENCHMARKS - Gas Consumption Tracking
 // ============================================================================
 
-/// Prints full budget in a formatted way
+#[cfg(test)]
 fn print_budget(env: &Env, label: &str) {
     let budget = env.cost_estimate().budget();
 
@@ -116,11 +132,7 @@ fn bench_verify_integrity() {
 #[test]
 fn bench_receipt_claim_digest() {
     let (env, _client) = setup_test();
-    let image_id = BytesN::from_array(&env, &TEST_IMAGE_ID);
-    let journal_digest: BytesN<32> = env
-        .crypto()
-        .sha256(&Bytes::from_slice(&env, &TEST_JOURNAL))
-        .into();
+    let (_seal, image_id, journal_digest) = prepare_inputs(&env);
 
     // Build claim and compute digest
     let claim = soroban_risc0_verifier_interface::ReceiptClaim::new(&env, image_id, journal_digest);
