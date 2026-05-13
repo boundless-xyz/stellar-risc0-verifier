@@ -59,17 +59,20 @@ stellar contract invoke --id soroban-risc0-router --source-account owner -- add_
 
 The [emergency-stop contract](../contracts/emergency-stop) is an optional wrapper that sits between the router and a verifier.
 While unpaused it forwards `verify` and `verify_integrity` to the inner verifier; once stopped it permanently rejects them.
-The wrapper cannot be restarted.
-Recovery is to deploy a fresh wrapper around the existing inner verifier (which is unaffected by the stop) and link the new wrapper to the router.
+
+The wrapper cannot be restarted. Recovery is to deploy a fresh wrapper around the existing inner verifier (which is unaffected by the stop) and link the new wrapper to the router.
 
 A wrapper can be stopped two ways:
 
 - The **guardian** account set at construction can call `estop` at any time.
 - Anyone can call `estop_with_proof` with a valid receipt for the all-zeroes claim digest.
+
 Such a receipt can only exist if the proof system is critically broken, so this acts as a permissionless circuit-breaker.
 
 Production deployments should wrap every verifier.
-The multisig patterns in [More Complex Ownership](#more-complex-ownership) apply equally to the guardian account.
+
+> [!IMPORTANT]
+> The multisig patterns in [More Complex Ownership](#more-complex-ownership) apply equally to the guardian account.
 
 ### Deploying the wrapper
 
@@ -80,8 +83,9 @@ stellar keys generate guardian
 stellar keys fund guardian   # testnet only
 ```
 
-First, deploy the inner verifier as in [Deploying and linking a verifier](#deploying-and-linking-a-verifier), but **do not run `add_verifier` on it**.
-Then deploy the wrapper around the inner verifier:
+First, deploy the inner verifier as in [Deploying and linking a verifier](#deploying-and-linking-a-verifier)
+
+Deploy a wrapper around the inner verifier with:
 
 ```shell
 stellar contract deploy --package soroban-risc0-emergency-stop --optimize --source-account deployer -- --verifier soroban-risc0-groth16-verifier --guardian guardian
@@ -116,9 +120,7 @@ stellar contract invoke --id soroban-risc0-router --source-account owner -- remo
 ```
 
 A new wrapper can then be deployed and linked using the same steps above.
-The inner verifier is unaffected by the stop.
-Point the new wrapper at the existing verifier, or at a freshly deployed inner verifier if the underlying issue requires replacing that too (e.g., a successful `estop_with_proof` demonstrates a proof-system break, so any wrapper around the same inner would be stoppable the same way).
-However, since the wrapper's `selector()` forwards that of the inner verifier, it cannot be used to replace an existing entry in a router.
+The inner verifier is unaffected by the stop. Point the new wrapper at the existing verifier, or at a freshly deployed inner verifier if the underlying issue requires replacing that too (e.g., a successful `estop_with_proof` demonstrates a proof-system break, so any wrapper around the same inner would be stoppable the same way). However, since the wrapper's `selector()` forwards that of the inner verifier, it cannot be used to replace an existing entry in a router.
 
 ## More Complex Ownership
 
