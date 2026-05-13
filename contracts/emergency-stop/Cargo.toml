@@ -17,6 +17,6 @@ stellar-contract-utils = { workspace = true }
 stellar-macros = { workspace = true }
 
 [dev-dependencies]
-soroban-sdk = { workspace = true, features = ["testutils"] }
-soroban-risc0-mock-verifier = { workspace = true }
 soroban-risc0-groth16-verifier = { path = "../groth16-verifier", features = ["test-fixtures"] }
+soroban-risc0-mock-verifier = { workspace = true }
+soroban-sdk = { workspace = true, features = ["testutils"] }

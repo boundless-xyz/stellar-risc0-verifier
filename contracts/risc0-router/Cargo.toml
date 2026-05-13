@@ -16,5 +16,5 @@ stellar-access = { workspace = true }
 stellar-macros = { workspace = true }
 
 [dev-dependencies]
-soroban-sdk = { workspace = true, features = ["testutils"] }
 soroban-risc0-mock-verifier = { workspace = true }
+soroban-sdk = { workspace = true, features = ["testutils"] }
