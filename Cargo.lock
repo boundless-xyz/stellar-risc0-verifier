@@ -1161,12 +1161,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
 
 [[package]]
-name = "hex-literal"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
-
-[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1810,7 +1804,7 @@ dependencies = [
  "cfg-if",
  "digest",
  "hex",
- "hex-literal 0.4.1",
+ "hex-literal",
  "metal",
  "paste",
  "rand_core 0.9.5",
@@ -2147,7 +2141,7 @@ dependencies = [
  "elliptic-curve",
  "generic-array",
  "getrandom 0.2.17",
- "hex-literal 0.4.1",
+ "hex-literal",
  "hmac",
  "k256",
  "num-derive",
@@ -2215,10 +2209,15 @@ dependencies = [
 name = "soroban-risc0-groth16-verifier"
 version = "0.1.0"
 dependencies = [
- "hex",
- "hex-literal 1.1.0",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
+ "ark-groth16",
+ "ark-serialize 0.5.0",
+ "risc0-binfmt",
  "risc0-circuit-recursion",
- "sha2",
+ "risc0-groth16",
+ "risc0-zkp",
+ "serde_json",
  "soroban-risc0-verifier-interface",
  "soroban-sdk",
 ]
@@ -2245,6 +2244,8 @@ dependencies = [
 name = "soroban-risc0-verifier-interface"
 version = "0.1.0"
 dependencies = [
+ "risc0-binfmt",
+ "risc0-zkp",
  "soroban-sdk",
 ]
 
