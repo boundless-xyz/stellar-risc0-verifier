@@ -1,3 +1,5 @@
+> **Archived:** Historical source for the RISC Zero Stellar verifier.
+
 # Stellar Risc0 verifier
 [![Build](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/build-and-test.yml)
 [![Lint](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/linter.yml/badge.svg)](https://github.com/NethermindEth/stellar-risc0-verifier/actions/workflows/linter.yml)
